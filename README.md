@@ -8,3 +8,4 @@ ERROR CODE TABLE (Win32)
 3                   -   Failed to Create Window
 4                   -   Failed to Get Hardware Device Context
 5                   -   Failed to Allocate Memory
+6                   -   Failed to Read timestamp

@@ -8,30 +8,30 @@ namespace {
     /**************************************************************************
      * Initialize a Screen Buffer
      *************************************************************************/
-    uint16_t win32_InitGfxBuffer(win32_GfxBuffer *buffer, int width, int height) {
+    uint16_t win32_InitGfxBuffer(win32_GfxBuffer* buffer, int width, int height) {
         if(buffer->memory) {
             VirtualFree(buffer->memory, 0, MEM_RELEASE);    // release existing buffer before re-allocating
         }
 
-        buffer->width = width;
-        buffer->height = height;
         buffer->channelCount = 4;
-        buffer->pitch = buffer->width * buffer->channelCount;
+        buffer->pitch = width * buffer->channelCount;
 
         buffer->info.bmiHeader.biSize = sizeof(buffer->info.bmiHeader);
-        buffer->info.bmiHeader.biWidth = buffer->width;
-        buffer->info.bmiHeader.biHeight = buffer->height;
+        buffer->info.bmiHeader.biWidth = width;
+        buffer->info.bmiHeader.biHeight = height;
         buffer->info.bmiHeader.biPlanes = 1;
         buffer->info.bmiHeader.biBitCount = 32;                     // Force 32-bit color to force DWORD aligned
         buffer->info.bmiHeader.biCompression = BI_RGB;               // use No Compression
 
-        int memSz = buffer->width * buffer->height * buffer->channelCount;
+        int memSz = width * height * buffer->channelCount;
         buffer->memory = VirtualAlloc(
             NULL,                               // Starting memory address (NULL so system determines)
             memSz,                              // Size of region (in Bytes)
             MEM_RESERVE|MEM_COMMIT,             // Reserve Page files and Commit the to memory
             PAGE_READWRITE);                    // Allow Read/Write access
     }
+
+
 
     /**************************************************************************
      * Initialize the mainWindow
@@ -91,7 +91,27 @@ namespace {
 
     }
 
-}
+    inline uint16_t win32_GetLastWriteTime(char* filename, FILETIME* output) {
+        uint16_t result = 0;
+        WIN32_FILE_ATTRIBUTE_DATA data;
+
+        if(GetFileAttributesEx((LPCWSTR)filename, GetFileExInfoStandard, &data)) {      // attempt to get file info
+            output = &(data.ftLastWriteTime);           // grab last write timestamp
+            result = 1;         // SUCCESS
+        } else {
+            result = 6;         // ERROR: Failed to Read timestamp
+        }
+
+        return result;
+    }
+
+    win32_GameCode win32_LoadGameCode(char* dllName) {
+        win32_GameCode result = {};
+
+        
+    }
+
+}       // End of Internal Methods
 
 
 /******************************************************************************
@@ -118,6 +138,8 @@ int CALLBACK WinMain(
 
 
     while(running) {
+
+
 
     }
 }
