@@ -30,7 +30,7 @@ struct win32_GfxBuffer {
 struct win32_GameCode {
     FILETIME        dllTimeStamp;   // timestamp of last write time
     HMODULE         dllGameCode;    // game library
-    game_Render*    gameRender;     // render function
+    game_Render*     gameRender;     // render function
     bool            isValid;        // struct initialized
 };
 

@@ -68,17 +68,19 @@ namespace {
                 int y = paint.rcPaint.top;
                 win32_WindowDimension wd = win32_GetWindowDimension(window);
                 win32_CopyBufferToWindow(deviceContext, wd.width, wd.height, &backBuffer, x, y);
-                
+                EndPaint(window, &paint);
             }
             default: {          // propogate any other messages up to the OS to process
                 result = DefWindowProcA(window, msg, wParam, lParam);
             } break;
         }
+        return result;
     }
     /**************************************************************************
      * Initialize a Screen Buffer
      *************************************************************************/
     uint16_t win32_InitGfxBuffer(win32_GfxBuffer* buffer, int width, int height) {
+        uint16_t result = 0;                // default to general error
         if(buffer->memory) {
             VirtualFree(buffer->memory, 0, MEM_RELEASE);    // release existing buffer before re-allocating
         }
@@ -99,6 +101,14 @@ namespace {
             memSz,                              // Size of region (in Bytes)
             MEM_RESERVE|MEM_COMMIT,             // Reserve Page files and Commit the to memory
             PAGE_READWRITE);                    // Allow Read/Write access
+
+        if(buffer->memory) {
+            result = 1;                      // SUCCESS!
+        } else {
+            result = 5;                         // ERROR: Failed to allocate buffer memory!
+        }
+
+        return result;
     }
 
 
@@ -172,7 +182,7 @@ namespace {
         uint16_t result = 0;
         WIN32_FILE_ATTRIBUTE_DATA data;
 
-        if(GetFileAttributesEx((LPCWSTR)filename, GetFileExInfoStandard, &data)) {      // attempt to get file info
+        if(GetFileAttributesExA(filename, GetFileExInfoStandard, &data)) {      // attempt to get file info
             output = &(data.ftLastWriteTime);           // grab last write timestamp
             result = 1;         // SUCCESS
         } else {
@@ -198,7 +208,7 @@ namespace {
         CopyFileA(dllName, tempDllName, false);                 // make a working copy of dll
         output->dllGameCode = LoadLibraryA(tempDllName);         // deploy OS hooks to load working dll
         if(output->dllGameCode) {                               // load successful
-            output->gameRender = (game_Render*)GetProcAddress(output->dllGameCode, "game_Render");
+            output->gameRender = (game_Render*)GetProcAddress(output->dllGameCode, "renderGame");
             win32_GetLastWriteTime(dllName, &(output->dllTimeStamp));
             output->isValid = (output->gameRender != nullptr);    // set initialized flag
         } else {
@@ -209,7 +219,7 @@ namespace {
             result = 1;                 // SUCCESS
         } else {
             result = 8;                 // ERROR: Failed to load render function
-            output->gameRender = 0;   
+//            output->gameRender = 0;   
         }
 
         return result;        
@@ -292,7 +302,7 @@ int CALLBACK WinMain(
     }
 
     bool running = true;
-    while((running) && (errorCode == 1)) {
+    while((running)) {
 
         // update loaded code if needed
         win32_GetLastWriteTime(dllName, &dllWriteTime);

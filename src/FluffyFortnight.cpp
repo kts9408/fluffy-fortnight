@@ -30,6 +30,6 @@ namespace {
 /******************************************************************************
  * Public Methods
  *****************************************************************************/
-extern "C" void game_Render(game_GfxBuffer *gfxBuffer) {
+extern "C" void renderGame(game_GfxBuffer *gfxBuffer) {
     renderTestGradient(gfxBuffer);          // renders a test gradient
 }
