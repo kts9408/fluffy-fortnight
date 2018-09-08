@@ -9,3 +9,5 @@ ERROR CODE TABLE (Win32)
 4                   -   Failed to Get Hardware Device Context
 5                   -   Failed to Allocate Memory
 6                   -   Failed to Read timestamp
+7                   -   Failed to Load Game Dll
+8                   -   Failed to Load Render Function

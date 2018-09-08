@@ -28,9 +28,16 @@ struct win32_GfxBuffer {
 
 // Struct encapsulating the game code handle
 struct win32_GameCode {
-    FILETIME        dllTimeStamp;
-    HMODULE         dllGameCode;
-    game_Render     gameRender;
+    FILETIME        dllTimeStamp;   // timestamp of last write time
+    HMODULE         dllGameCode;    // game library
+    game_Render*    gameRender;     // render function
+    bool            isValid;        // struct initialized
+};
+
+// Struct encapsulating the dimensions of the window
+struct win32_WindowDimension {
+    int             width;
+    int             height;
 };
 
 #endif

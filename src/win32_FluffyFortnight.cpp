@@ -5,6 +5,7 @@
  *****************************************************************************/
 namespace {
 
+    win32_GfxBuffer backBuffer;
     /**************************************************************************
      * Initialize a Screen Buffer
      *************************************************************************/
@@ -34,7 +35,7 @@ namespace {
 
 
     /**************************************************************************
-     * Initialize the mainWindow
+     * Initialize the Main Window
      *************************************************************************/
     uint16_t win32_InitWindow(
         HINSTANCE &hInstance,   // handle to current instance [input]
@@ -88,9 +89,55 @@ namespace {
         WPARAM wParam,          // additional message information dependent on the type of message
         LPARAM lParam           // additional message information dependent on the type of message
     ) {
+        LRESULT result = 0;
+        switch(msg) {
+            case WM_SIZE: {     // resize window message
 
+            } break;
+
+            case WM_CLOSE: {    // close window message
+
+            } break;
+
+            case WM_ACTIVATEAPP: {
+
+            } break;
+
+            case WM_PAINT: {    // repaint window message
+                PAINTSTRUCT paint;
+                HDC deviceContext = BeginPaint(window, &paint);
+
+                int height = paint.rcPaint.bottom - paint.rcPaint.top;
+                int width = paint.rcPaint.right - paint.rcPaint.left;
+                int x = paint.rcPaint.left;
+                int y = paint.rcPaint.top;
+                win32_WindowDimension wd = win32_GetWindowDimension(window);
+                win32_CopyBufferToWindow(deviceContext, wd.width, wd.height, &backBuffer, x, y);
+                
+            }
+            default: {          // propogate any other messages up to the OS to process
+                result = DefWindowProcA(window, msg, wParam, lParam);
+            } break;
+        }
     }
 
+    /**************************************************************************
+     * Helper function to return the dimensions of the main window
+     *************************************************************************/
+    inline win32_WindowDimension win32_GetWindowDimension(HWND window) {
+        win32_WindowDimension result = {};
+        RECT clientRect;
+
+        GetClientRect(window, &clientRect);
+        result.width = clientRect.right - clientRect.left;
+        result.height = clientRect.bottom - clientRect.top;
+
+        return result;
+    }
+
+    /**************************************************************************
+     * Helper function to return the write timestamp on a given file.
+     *************************************************************************/
     inline uint16_t win32_GetLastWriteTime(char* filename, FILETIME* output) {
         uint16_t result = 0;
         WIN32_FILE_ATTRIBUTE_DATA data;
@@ -104,12 +151,74 @@ namespace {
 
         return result;
     }
+    
 
-    win32_GameCode win32_LoadGameCode(char* dllName) {
-        win32_GameCode result = {};
+    /**************************************************************************
+     * Load game code from external library
+     *************************************************************************/
+    uint16_t win32_LoadGameCode(char* dllName, win32_GameCode* output) {
+        // TODO: Get real path (ie. data not build)
+        // TODO: swap to auto update instead of on demand
 
-        
+        uint16_t result = 0;        // default to general error
+        output->isValid = false;
+
+        char* tempDllName = "FluffyFortnight.temp.dll";         // set temporary file name
+
+        CopyFileA(dllName, tempDllName, false);                 // make a working copy of dll
+        output->dllGameCode = LoadLibraryA(tempDllName);         // deploy OS hooks to load working dll
+        if(output->dllGameCode) {                               // load successful
+            output->gameRender = (game_Render*)GetProcAddress(output->dllGameCode, "game_Render");
+            win32_GetLastWriteTime(dllName, &(output->dllTimeStamp));
+            output->isValid = (output->gameRender != nullptr);    // set initialized flag
+        } else {
+            result = 7;                 // ERROR: Failed to read library
+        }
+
+        if(output->isValid) {
+            result = 1;                 // SUCCESS
+        } else {
+            result = 8;                 // ERROR: Failed to load render function
+            output->gameRender = 0;   
+        }
+
+        return result;        
     }
+
+    /**************************************************************************
+     * Free game code loaded
+     *************************************************************************/
+    void win32_FreeGameCode(win32_GameCode* input) {
+        if (input->dllGameCode) {
+            FreeLibrary(input->dllGameCode);
+        }
+
+        input->gameRender = 0;
+        input->isValid = false;
+    }
+
+
+    /**************************************************************************
+     * Copy Screen Buffer to a window (Flip).
+     *************************************************************************/
+    void win32_CopyBufferToWindow(
+        HDC window,                             // Device Context for the destination window
+        int windowWidth, int windowHeight,      // dimensions of the window
+        win32_GfxBuffer* srcBuffer,             // source buffer
+        int x, int y                            // coordinates to offset (TODO: Implement offsets)
+    ) {
+        // TODO: Maintain aspect ratio
+        StretchDIBits(
+            window,                             // destination
+            0, 0, windowWidth, windowHeight,    // destination starting coordinates/dimensions to copy to
+            0, 0,                               // source starting coordinates
+            srcBuffer->info.bmiHeader.biWidth, srcBuffer->info.bmiHeader.biHeight,  //source copy dimensions
+            srcBuffer->memory,                  // data to copy/stretch
+            &(srcBuffer->info),                 // header for data
+            DIB_RGB_COLORS, SRCCOPY             // direct copy (non-palettized)
+        );
+    }
+
 
 }       // End of Internal Methods
 
@@ -126,20 +235,56 @@ int CALLBACK WinMain(
     HWND mainWindow;
     HDC deviceContext;
     uint16_t errorCode;
-    win32_GfxBuffer backBuffer = {};    // create the backbuffer
-    bool running = false;
-
-    errorCode = win32_InitWindow(hInstance, mainWindow);
-    if(errorCode == 1) {
-        running = true;
-    } else {
+    
+    char* dllName = "FluffyFortnight.dll";
+    win32_GameCode gameCode = {};                           // create the external code library
+    FILETIME dllWriteTime;
+    errorCode = win32_LoadGameCode(dllName, &gameCode);     // load the game code      
+    if(errorCode != 1) {    
+        // TODO: Error Logging
+    }
+    
+    bool unloadCode = false;
+    errorCode = win32_InitWindow(hInstance, mainWindow);    // create the Main Window
+    if(errorCode != 1) {    
         // TODO: Error Logging
     }
 
+    // win32_GfxBuffer backBuffer = {};                        // create the back buffer
+    backBuffer = {};                        
+    errorCode = win32_InitGfxBuffer(                        // initialize back buffer
+        &backBuffer,
+        DEFAULT_GFX_BUFFER_WIDTH,
+        DEFAULT_GFX_BUFFER_HEIGHT
+    );
+    if(errorCode != 1) {     
+        // TODO: Error Logging
+    }
 
-    while(running) {
+    bool running = true;
+    while((running) && (errorCode == 1)) {
 
+        // update loaded code if needed
+        win32_GetLastWriteTime(dllName, &dllWriteTime);
+        if(CompareFileTime(&dllWriteTime, &(gameCode.dllTimeStamp)) != 0) { 
+            win32_FreeGameCode(&gameCode);
+            errorCode = win32_LoadGameCode(dllName, &gameCode);
+        }
 
+        // create and initialize a working buffer for the game code to manipulate
+        game_GfxBuffer buffer = {};
+        buffer.memory = backBuffer.memory;
+        buffer.width = backBuffer.info.bmiHeader.biWidth;
+        buffer.height = backBuffer.info.bmiHeader.biHeight;
+        buffer.pitch = backBuffer.pitch;
+        buffer.channelCount = backBuffer.channelCount;
 
+        (*gameCode.gameRender)(&buffer);
+        deviceContext = GetDC(mainWindow);
+        win32_CopyBufferToWindow(
+            deviceContext,
+            DEFAULT_GFX_BUFFER_WIDTH, DEFAULT_GFX_BUFFER_HEIGHT,
+            &backBuffer, 0, 0
+        );
     }
 }
