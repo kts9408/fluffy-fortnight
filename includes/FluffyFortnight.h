@@ -37,5 +37,5 @@ struct game_GfxBuffer {
  * renders the game screen to it.
  * @param gfxBuffer - The game_GfxBuffer struct to modify.
  *****************************************************************************/
-typedef void (*game_Render)(game_GfxBuffer *gfxBuffer);
+typedef void game_Render(game_GfxBuffer *gfxBuffer);
 #endif

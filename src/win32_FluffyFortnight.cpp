@@ -4,8 +4,77 @@
  * Internal Methods 
  *****************************************************************************/
 namespace {
-
+    /**************************************************************************
+     * Forward Declare Private Members/Functions
+     *************************************************************************/
     win32_GfxBuffer backBuffer;
+    LRESULT CALLBACK win32_MainWindowCallback(
+        HWND window,            // handle to the window
+        UINT msg,               // the message
+        WPARAM wParam,          // additional message information dependent on the type of message
+        LPARAM lParam           // additional message information dependent on the type of message
+    );
+    uint16_t win32_InitGfxBuffer(win32_GfxBuffer* buffer, int width, int height);
+    uint16_t win32_InitWindow(
+        HINSTANCE &hInstance,   // handle to current instance [input]
+        HWND &window            // handle to main window [output]
+    );
+
+    inline win32_WindowDimension win32_GetWindowDimension(HWND window);
+    inline uint16_t win32_GetLastWriteTime(char* filename, FILETIME* output);
+    uint16_t win32_LoadGameCode(char* dllName, win32_GameCode* output);
+    void win32_FreeGameCode(win32_GameCode* input);
+    void win32_CopyBufferToWindow(
+        HDC window,                             // Device Context for the destination window
+        int windowWidth, int windowHeight,      // dimensions of the window
+        win32_GfxBuffer* srcBuffer,             // source buffer
+        int x, int y                            // coordinates to offset (TODO: Implement offsets)
+    );      // End of Forward Declaration
+
+
+
+
+
+    /**************************************************************************
+     * Callback function that processes messages sent to the main window
+     **************************************************************************/
+    LRESULT CALLBACK win32_MainWindowCallback(
+        HWND window,            // handle to the window
+        UINT msg,               // the message
+        WPARAM wParam,          // additional message information dependent on the type of message
+        LPARAM lParam           // additional message information dependent on the type of message
+    ) {
+        LRESULT result = 0;
+        switch(msg) {
+            case WM_SIZE: {     // resize window message
+
+            } break;
+
+            case WM_CLOSE: {    // close window message
+
+            } break;
+
+            case WM_ACTIVATEAPP: {
+
+            } break;
+
+            case WM_PAINT: {    // repaint window message
+                PAINTSTRUCT paint;
+                HDC deviceContext = BeginPaint(window, &paint);
+
+                int height = paint.rcPaint.bottom - paint.rcPaint.top;
+                int width = paint.rcPaint.right - paint.rcPaint.left;
+                int x = paint.rcPaint.left;
+                int y = paint.rcPaint.top;
+                win32_WindowDimension wd = win32_GetWindowDimension(window);
+                win32_CopyBufferToWindow(deviceContext, wd.width, wd.height, &backBuffer, x, y);
+                
+            }
+            default: {          // propogate any other messages up to the OS to process
+                result = DefWindowProcA(window, msg, wParam, lParam);
+            } break;
+        }
+    }
     /**************************************************************************
      * Initialize a Screen Buffer
      *************************************************************************/
@@ -80,46 +149,7 @@ namespace {
         return(result);
     }
 
-    /**************************************************************************
-     * Callback function that processes messages sent to the main window
-     **************************************************************************/
-    LRESULT CALLBACK win32_MainWindowCallback(
-        HWND window,            // handle to the window
-        UINT msg,               // the message
-        WPARAM wParam,          // additional message information dependent on the type of message
-        LPARAM lParam           // additional message information dependent on the type of message
-    ) {
-        LRESULT result = 0;
-        switch(msg) {
-            case WM_SIZE: {     // resize window message
 
-            } break;
-
-            case WM_CLOSE: {    // close window message
-
-            } break;
-
-            case WM_ACTIVATEAPP: {
-
-            } break;
-
-            case WM_PAINT: {    // repaint window message
-                PAINTSTRUCT paint;
-                HDC deviceContext = BeginPaint(window, &paint);
-
-                int height = paint.rcPaint.bottom - paint.rcPaint.top;
-                int width = paint.rcPaint.right - paint.rcPaint.left;
-                int x = paint.rcPaint.left;
-                int y = paint.rcPaint.top;
-                win32_WindowDimension wd = win32_GetWindowDimension(window);
-                win32_CopyBufferToWindow(deviceContext, wd.width, wd.height, &backBuffer, x, y);
-                
-            }
-            default: {          // propogate any other messages up to the OS to process
-                result = DefWindowProcA(window, msg, wParam, lParam);
-            } break;
-        }
-    }
 
     /**************************************************************************
      * Helper function to return the dimensions of the main window
@@ -279,7 +309,7 @@ int CALLBACK WinMain(
         buffer.pitch = backBuffer.pitch;
         buffer.channelCount = backBuffer.channelCount;
 
-        (*gameCode.gameRender)(&buffer);
+        gameCode.gameRender(&buffer);
         deviceContext = GetDC(mainWindow);
         win32_CopyBufferToWindow(
             deviceContext,
