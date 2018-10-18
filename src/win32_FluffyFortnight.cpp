@@ -208,7 +208,7 @@ namespace {
         CopyFileA(dllName, tempDllName, false);                 // make a working copy of dll
         output->dllGameCode = LoadLibraryA(tempDllName);         // deploy OS hooks to load working dll
         if(output->dllGameCode) {                               // load successful
-            output->gameRender = (game_Render*)GetProcAddress(output->dllGameCode, "renderGame");
+            output->gameRender = (game_render*)GetProcAddress(output->dllGameCode, "renderGame");
             win32_GetLastWriteTime(dllName, &(output->dllTimeStamp));
             output->isValid = (output->gameRender != nullptr);    // set initialized flag
         } else {
@@ -259,6 +259,11 @@ namespace {
         );
     }
 
+    DWORD WINAPI win32_AudioCallback(LPVOID params) {
+
+        return 1;
+    }
+
 
 }       // End of Internal Methods
 
@@ -275,7 +280,13 @@ int CALLBACK WinMain(
     HWND mainWindow;
     HDC deviceContext;
     uint16_t errorCode;
-    
+    HANDLE threadPool[4];
+    void* audioParams           = 0;
+    LPDWORD audioThreadId       = 0;
+    HANDLE audioThread          = CreateThread(NULL, NULL, win32_AudioCallback, audioParams, DELAY_THREAD_START, audioThreadId);
+    for(int i = 0; i < 4; i++) {
+        // TODO: Create Threads
+    }
     char* dllName = "FluffyFortnight.dll";
     win32_GameCode gameCode = {};                           // create the external code library
     FILETIME dllWriteTime;
@@ -309,6 +320,7 @@ int CALLBACK WinMain(
         if(CompareFileTime(&dllWriteTime, &(gameCode.dllTimeStamp)) != 0) { 
             win32_FreeGameCode(&gameCode);
             errorCode = win32_LoadGameCode(dllName, &gameCode);
+			running = (errorCode != 1);
         }
 
         // create and initialize a working buffer for the game code to manipulate
@@ -318,8 +330,9 @@ int CALLBACK WinMain(
         buffer.height = backBuffer.info.bmiHeader.biHeight;
         buffer.pitch = backBuffer.pitch;
         buffer.channelCount = backBuffer.channelCount;
-
-        gameCode.gameRender(&buffer);
+		if (gameCode.gameRender) {
+			gameCode.gameRender(&buffer);
+		}
         deviceContext = GetDC(mainWindow);
         win32_CopyBufferToWindow(
             deviceContext,

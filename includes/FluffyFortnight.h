@@ -28,14 +28,28 @@ struct game_GfxBuffer {
     int             pitch;
 };
 
+
+struct game_Thread {
+    uint32_t*       threadId;
+    void*           threadCallBack;
+};
 /******************************************************************************
- * Public Functions
+ * External Bindings
  *****************************************************************************/
+#define GAME_RENDER(name) void name(game_GfxBuffer *gfxBuffer)
+// TODO: Add additional bindings here
 
 /******************************************************************************
  * The game_Render function takes a reference to a game_GfxBuffer struct and 
  * renders the game screen to it.
  * @param gfxBuffer - The game_GfxBuffer struct to modify.
  *****************************************************************************/
-typedef void game_Render(game_GfxBuffer *gfxBuffer);
+typedef GAME_RENDER(game_render);
+
+/******************************************************************************
+ * Public Functions
+ *****************************************************************************/
+
+
+
 #endif

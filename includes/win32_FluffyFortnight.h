@@ -8,6 +8,7 @@
 // External Dependencies
 #include <Windows.h>
 #include "..\includes\FluffyFortnight.h"
+#define     DELAY_THREAD_START 0x00000004
 
 /******************************************************************************
  * CONST
@@ -30,7 +31,7 @@ struct win32_GfxBuffer {
 struct win32_GameCode {
     FILETIME        dllTimeStamp;   // timestamp of last write time
     HMODULE         dllGameCode;    // game library
-    game_Render*     gameRender;     // render function
+    game_render*    gameRender;     // render function
     bool            isValid;        // struct initialized
 };
 
