@@ -20,6 +20,19 @@ const int DEFAULT_GFX_BUFFER_HEIGHT = 720;
  * STRUCTS
  *****************************************************************************/
 
+struct game_Memory {
+    bool            isInitialized;
+    uint16_t        cursorX;
+    uint16_t        cursorY;
+    
+    uint64_t        permanentStorageSize;
+    void*           permanentStorage;
+    uint64_t        tempStorageSize;
+    void*           tempStorage;
+
+    // TODO: add handles for file I/O
+};
+
 struct game_GfxBuffer {
     void*           memory;
     int             width;
@@ -40,7 +53,7 @@ struct game_Thread {
 // TODO: Add additional bindings here
 
 /******************************************************************************
- * The game_Render function takes a reference to a game_GfxBuffer struct and 
+ * The game_render function takes a reference to a game_GfxBuffer struct and 
  * renders the game screen to it.
  * @param gfxBuffer - The game_GfxBuffer struct to modify.
  *****************************************************************************/

@@ -1,13 +1,21 @@
 #include "../includes/FluffyFortnight.h"
 
-/******************************************************************************
- * Internal Methods 
- *****************************************************************************/
 namespace {
+    
+    game_Memory gameMemory;
+    /**************************************************************************
+    * Internal Methods 
+    **************************************************************************/
+
+   /***************************************************************************
+    * Forward Declarations
+    **************************************************************************/
+   void renderTestGradient(game_GfxBuffer* gfxBuffer);
+
     /**************************************************************************
      * Draws a Test gradent to the Graphics Buffer
      *************************************************************************/
-    void renderTestGradient(game_GfxBuffer *gfxBuffer) {
+    void renderTestGradient(game_GfxBuffer* gfxBuffer) {
         int height = gfxBuffer->height;
         int width = gfxBuffer->width;
         int pitch = gfxBuffer->pitch;

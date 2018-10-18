@@ -7,7 +7,8 @@ namespace {
     /**************************************************************************
      * Forward Declare Private Members/Functions
      *************************************************************************/
-    win32_GfxBuffer backBuffer;
+    win32_GfxBuffer frameBuffer;
+    bool running = true;
     LRESULT CALLBACK win32_MainWindowCallback(
         HWND window,            // handle to the window
         UINT msg,               // the message
@@ -23,17 +24,17 @@ namespace {
     inline win32_WindowDimension win32_GetWindowDimension(HWND window);
     inline uint16_t win32_GetLastWriteTime(char* filename, FILETIME* output);
     uint16_t win32_LoadGameCode(char* dllName, win32_GameCode* output);
+    void win32_ProcessPendingMessages();
+    void win32_ProcessKeyboardInput(MSG* msg);
     void win32_FreeGameCode(win32_GameCode* input);
     void win32_CopyBufferToWindow(
         HDC window,                             // Device Context for the destination window
         int windowWidth, int windowHeight,      // dimensions of the window
         win32_GfxBuffer* srcBuffer,             // source buffer
         int x, int y                            // coordinates to offset (TODO: Implement offsets)
-    );      // End of Forward Declaration
+    );      
 
-
-
-
+    // End of Forward Declaration
 
     /**************************************************************************
      * Callback function that processes messages sent to the main window
@@ -50,8 +51,15 @@ namespace {
 
             } break;
 
-            case WM_CLOSE: {    // close window message
+            case WM_DESTROY: {
+                running = false;
+            }
+            case WM_QUIT: {
+                running = false;
+            } break;
 
+            case WM_CLOSE: {    // close window message
+                running = false;
             } break;
 
             case WM_ACTIVATEAPP: {
@@ -67,9 +75,10 @@ namespace {
                 int x = paint.rcPaint.left;
                 int y = paint.rcPaint.top;
                 win32_WindowDimension wd = win32_GetWindowDimension(window);
-                win32_CopyBufferToWindow(deviceContext, wd.width, wd.height, &backBuffer, x, y);
+                win32_CopyBufferToWindow(deviceContext, wd.width, wd.height, &frameBuffer, x, y);
                 EndPaint(window, &paint);
-            }
+            } break;
+
             default: {          // propogate any other messages up to the OS to process
                 result = DefWindowProcA(window, msg, wParam, lParam);
             } break;
@@ -103,7 +112,7 @@ namespace {
             PAGE_READWRITE);                    // Allow Read/Write access
 
         if(buffer->memory) {
-            result = 1;                      // SUCCESS!
+            result = 1;                         // SUCCESS!
         } else {
             result = 5;                         // ERROR: Failed to allocate buffer memory!
         }
@@ -219,7 +228,6 @@ namespace {
             result = 1;                 // SUCCESS
         } else {
             result = 8;                 // ERROR: Failed to load render function
-//            output->gameRender = 0;   
         }
 
         return result;        
@@ -259,8 +267,45 @@ namespace {
         );
     }
 
-    DWORD WINAPI win32_AudioCallback(LPVOID params) {
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    void win32_ProcessPendingMessages(HWND window) {
+        MSG msg;
+        while(PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
+            switch(msg.message) {
+                case WM_SYSKEYDOWN:		
+			    case WM_SYSKEYUP:		
+			    case WM_KEYDOWN:
+			    case WM_KEYUP: {
+                    win32_ProcessKeyboardInput(&msg);
+                } break;
+                default: {
+                    TranslateMessage(&msg);
+                    DispatchMessage(&msg);
+                }break;
+            }
 
+        }
+
+    }
+
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    void win32_ProcessKeyboardInput(MSG* msg) {
+        uint32_t vkCode = (uint32_t)msg->wParam;
+        bool wasDown = ((msg->lParam & (1 << 30)) != 0);
+        bool isDown = ((msg->lParam & (1 << 31)) != 0);
+        bool altKeyWasDown = (msg->lParam & (1 << 29));
+
+        running = !((vkCode == VK_F4) && (altKeyWasDown));
+    }
+
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    DWORD WINAPI win32_AudioCallback(LPVOID params) {
         return 1;
     }
 
@@ -279,40 +324,33 @@ int CALLBACK WinMain(
 ) {
     HWND mainWindow;
     HDC deviceContext;
+    char* dllName = "FluffyFortnight.dll";
+    game_GfxBuffer pushBuffer = {};                         // create the push buffer
+    win32_GameCode gameCode = {};                           // create the external code library
+    FILETIME dllWriteTime;
     uint16_t errorCode;
-    HANDLE threadPool[4];
+    // HANDLE threadPool[4];
     void* audioParams           = 0;
     LPDWORD audioThreadId       = 0;
     HANDLE audioThread          = CreateThread(NULL, NULL, win32_AudioCallback, audioParams, DELAY_THREAD_START, audioThreadId);
     for(int i = 0; i < 4; i++) {
         // TODO: Create Threads
     }
-    char* dllName = "FluffyFortnight.dll";
-    win32_GameCode gameCode = {};                           // create the external code library
-    FILETIME dllWriteTime;
-    errorCode = win32_LoadGameCode(dllName, &gameCode);     // load the game code      
-    if(errorCode != 1) {    
-        // TODO: Error Logging
-    }
-    
-    bool unloadCode = false;
-    errorCode = win32_InitWindow(hInstance, mainWindow);    // create the Main Window
-    if(errorCode != 1) {    
-        // TODO: Error Logging
-    }
 
-    // win32_GfxBuffer backBuffer = {};                        // create the back buffer
-    backBuffer = {};                        
+    errorCode = win32_LoadGameCode(dllName, &gameCode);     // load the game code      
+    errorCode = win32_InitWindow(hInstance, mainWindow);    // create the Main Window
+    frameBuffer = {};                        
     errorCode = win32_InitGfxBuffer(                        // initialize back buffer
-        &backBuffer,
+        &frameBuffer,
         DEFAULT_GFX_BUFFER_WIDTH,
         DEFAULT_GFX_BUFFER_HEIGHT
     );
+
     if(errorCode != 1) {     
+        running = false;
         // TODO: Error Logging
     }
 
-    bool running = true;
     while((running)) {
 
         // update loaded code if needed
@@ -320,24 +358,27 @@ int CALLBACK WinMain(
         if(CompareFileTime(&dllWriteTime, &(gameCode.dllTimeStamp)) != 0) { 
             win32_FreeGameCode(&gameCode);
             errorCode = win32_LoadGameCode(dllName, &gameCode);
-			running = (errorCode != 1);
         }
 
         // create and initialize a working buffer for the game code to manipulate
-        game_GfxBuffer buffer = {};
-        buffer.memory = backBuffer.memory;
-        buffer.width = backBuffer.info.bmiHeader.biWidth;
-        buffer.height = backBuffer.info.bmiHeader.biHeight;
-        buffer.pitch = backBuffer.pitch;
-        buffer.channelCount = backBuffer.channelCount;
+        
+        pushBuffer.memory = frameBuffer.memory;
+        pushBuffer.width = frameBuffer.info.bmiHeader.biWidth;
+        pushBuffer.height = frameBuffer.info.bmiHeader.biHeight;
+        pushBuffer.pitch = frameBuffer.pitch;
+        pushBuffer.channelCount = frameBuffer.channelCount;
 		if (gameCode.gameRender) {
-			gameCode.gameRender(&buffer);
+
+			gameCode.gameRender(&pushBuffer);
 		}
         deviceContext = GetDC(mainWindow);
         win32_CopyBufferToWindow(
             deviceContext,
             DEFAULT_GFX_BUFFER_WIDTH, DEFAULT_GFX_BUFFER_HEIGHT,
-            &backBuffer, 0, 0
+            &frameBuffer, 0, 0
         );
+
+        win32_ProcessPendingMessages(mainWindow);
+
     }
 }
