@@ -4,35 +4,26 @@
  * Internal Methods 
  *****************************************************************************/
 namespace {
-    /**************************************************************************
-     * Forward Declare Private Members/Functions
-     *************************************************************************/
+
     win32_GfxBuffer frameBuffer;
     bool running = true;
-    LRESULT CALLBACK win32_MainWindowCallback(
-        HWND window,            // handle to the window
-        UINT msg,               // the message
-        WPARAM wParam,          // additional message information dependent on the type of message
-        LPARAM lParam           // additional message information dependent on the type of message
-    );
-    uint16_t win32_InitGfxBuffer(win32_GfxBuffer* buffer, int width, int height);
-    uint16_t win32_InitWindow(
-        HINSTANCE &hInstance,   // handle to current instance [input]
-        HWND &window            // handle to main window [output]
-    );
+    /**************************************************************************
+    * Internal Methods 
+    **************************************************************************/
 
+   /***************************************************************************
+    * Forward Declarations
+    **************************************************************************/
+    LRESULT CALLBACK win32_MainWindowCallback(HWND window, UINT msg, WPARAM wParam, LPARAM lParam);
+    uint16_t win32_InitGfxBuffer(win32_GfxBuffer* buffer, int width, int height);
+    uint16_t win32_InitWindow(HINSTANCE &hInstance, HWND &window);
     inline win32_WindowDimension win32_GetWindowDimension(HWND window);
     inline uint16_t win32_GetLastWriteTime(char* filename, FILETIME* output);
     uint16_t win32_LoadGameCode(char* dllName, win32_GameCode* output);
     void win32_ProcessPendingMessages();
     void win32_ProcessKeyboardInput(MSG* msg);
     void win32_FreeGameCode(win32_GameCode* input);
-    void win32_CopyBufferToWindow(
-        HDC window,                             // Device Context for the destination window
-        int windowWidth, int windowHeight,      // dimensions of the window
-        win32_GfxBuffer* srcBuffer,             // source buffer
-        int x, int y                            // coordinates to offset (TODO: Implement offsets)
-    );      
+    void win32_CopyBufferToWindow(HDC window, int windowWidth, int windowHeight, win32_GfxBuffer* srcBuffer, int x, int y);      
 
     // End of Forward Declaration
 
@@ -120,8 +111,6 @@ namespace {
         return result;
     }
 
-
-
     /**************************************************************************
      * Initialize the Main Window
      *************************************************************************/
@@ -168,8 +157,6 @@ namespace {
         return(result);
     }
 
-
-
     /**************************************************************************
      * Helper function to return the dimensions of the main window
      *************************************************************************/
@@ -201,7 +188,6 @@ namespace {
         return result;
     }
     
-
     /**************************************************************************
      * Load game code from external library
      *************************************************************************/
@@ -217,7 +203,8 @@ namespace {
         CopyFileA(dllName, tempDllName, false);                 // make a working copy of dll
         output->dllGameCode = LoadLibraryA(tempDllName);         // deploy OS hooks to load working dll
         if(output->dllGameCode) {                               // load successful
-            output->gameRender = (game_render*)GetProcAddress(output->dllGameCode, "renderGame");
+            output->gameRender = (game_Render*)GetProcAddress(output->dllGameCode, "renderGame");
+            output->gameInit = (game_Init*)GetProcAddress(output->dllGameCode, "initGame");
             win32_GetLastWriteTime(dllName, &(output->dllTimeStamp));
             output->isValid = (output->gameRender != nullptr);    // set initialized flag
         } else {
@@ -244,7 +231,6 @@ namespace {
         input->gameRender = 0;
         input->isValid = false;
     }
-
 
     /**************************************************************************
      * Copy Screen Buffer to a window (Flip).
@@ -312,6 +298,16 @@ namespace {
 
 }       // End of Internal Methods
 
+/******************************************************************************
+ * Public Methods - For Prototyping Purposes
+ *****************************************************************************/
+extern "C" WIN32_READ_FROM_DISK(readFromDisk) {
+
+}
+
+extern "C" WIN32_WRITE_TO_DISK(writeToDisk) {
+
+}
 
 /******************************************************************************
  * Entry Point
@@ -324,19 +320,21 @@ int CALLBACK WinMain(
 ) {
     HWND mainWindow;
     HDC deviceContext;
-    char* dllName = "FluffyFortnight.dll";
-    game_GfxBuffer pushBuffer = {};                         // create the push buffer
-    win32_GameCode gameCode = {};                           // create the external code library
+    char* dllName                   = "FluffyFortnight.dll";
+    game_GfxBuffer pushBuffer       = {};                         // create the push buffer
+    win32_GameCode gameCode         = {};                         // create the external code library
     FILETIME dllWriteTime;
     uint16_t errorCode;
     // HANDLE threadPool[4];
-    void* audioParams           = 0;
-    LPDWORD audioThreadId       = 0;
-    HANDLE audioThread          = CreateThread(NULL, NULL, win32_AudioCallback, audioParams, DELAY_THREAD_START, audioThreadId);
+    void* audioParams               = 0;
+    LPDWORD audioThreadId           = 0;
+    HANDLE audioThread              = CreateThread(NULL, NULL, win32_AudioCallback, audioParams, DELAY_THREAD_START, audioThreadId);
+    // TODO: Enumerate HW and determine appropriate memory footprint
+    
+    void* memory                    = VirtualAlloc(0, (SIZE_T)(MEGABYTES(64) + GIGABYTES(2)), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
     for(int i = 0; i < 4; i++) {
         // TODO: Create Threads
     }
-
     errorCode = win32_LoadGameCode(dllName, &gameCode);     // load the game code      
     errorCode = win32_InitWindow(hInstance, mainWindow);    // create the Main Window
     frameBuffer = {};                        

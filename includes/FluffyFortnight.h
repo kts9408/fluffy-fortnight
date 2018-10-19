@@ -8,6 +8,12 @@
 // External Dependencies
 #include <stdint.h>
 
+/******************************************************************************
+ * MACROS
+ *****************************************************************************/
+#define KILOBYTES(value) ((value) * 1024)
+#define MEGABYTES(value) (KILOBYTES(value) * 1024)
+#define GIGABYTES(value) (MEGABYTES(value) * 1024)
 
 /******************************************************************************
  * CONST
@@ -16,21 +22,22 @@ const int DEFAULT_GFX_BUFFER_WIDTH = 1280;
 const int DEFAULT_GFX_BUFFER_HEIGHT = 720;
 
 
+
 /******************************************************************************
  * STRUCTS
  *****************************************************************************/
 
 struct game_Memory {
-    bool            isInitialized;
-    uint16_t        cursorX;
-    uint16_t        cursorY;
-    
-    uint64_t        permanentStorageSize;
-    void*           permanentStorage;
-    uint64_t        tempStorageSize;
-    void*           tempStorage;
+    bool            isInitialized;                  
+    uint64_t        permanentStorageSize;           // size of the persistant partition
+    game_State*     permanentStorage;               // persistant image
+    uint64_t        tempStorageSize;                // size of the temporary partition
+    void*           tempStorage;                    // temporary image
+};
 
-    // TODO: add handles for file I/O
+struct game_State {
+    // win32_ReadFromDisk*     win32ReadFromDisk;      
+    // win32_WriteToDisk*      win32WriteToDisk;
 };
 
 struct game_GfxBuffer {
@@ -50,6 +57,7 @@ struct game_Thread {
  * External Bindings
  *****************************************************************************/
 #define GAME_RENDER(name) void name(game_GfxBuffer *gfxBuffer)
+#define GAME_INIT(name) void name(game_Memory *memory)
 // TODO: Add additional bindings here
 
 /******************************************************************************
@@ -57,8 +65,8 @@ struct game_Thread {
  * renders the game screen to it.
  * @param gfxBuffer - The game_GfxBuffer struct to modify.
  *****************************************************************************/
-typedef GAME_RENDER(game_render);
-
+typedef GAME_RENDER(game_Render);
+typedef GAME_INIT(game_Init);
 /******************************************************************************
  * Public Functions
  *****************************************************************************/

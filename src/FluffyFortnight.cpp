@@ -2,7 +2,7 @@
 
 namespace {
     
-    game_Memory gameMemory;
+    game_Memory*        gameMemory;
     /**************************************************************************
     * Internal Methods 
     **************************************************************************/
@@ -11,6 +11,9 @@ namespace {
     * Forward Declarations
     **************************************************************************/
    void renderTestGradient(game_GfxBuffer* gfxBuffer);
+   void game_Init(game_Memory* memory);
+
+   // End of Forward Declarations
 
     /**************************************************************************
      * Draws a Test gradent to the Graphics Buffer
@@ -34,10 +37,23 @@ namespace {
         }
 
     }
+    /**************************************************************************
+     * Initialize the Game Memory
+     *************************************************************************/
+    void game_Init(game_Memory* memory) {
+        gameMemory = memory;
+        gameMemory->permanentStorageSize = MEGABYTES(64);
+        // TODO: implement memory management
+    }
+
 }
 /******************************************************************************
  * Public Methods
  *****************************************************************************/
 extern "C" GAME_RENDER(renderGame) {
     renderTestGradient(gfxBuffer);                          // renders a test gradient
+}
+
+extern "C" GAME_INIT(initGame) {
+    initGame(memory);
 }

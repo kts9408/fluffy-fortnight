@@ -8,12 +8,11 @@
 // External Dependencies
 #include <Windows.h>
 #include "..\includes\FluffyFortnight.h"
-#define     DELAY_THREAD_START 0x00000004
 
 /******************************************************************************
  * CONST
  *****************************************************************************/
-
+#define     DELAY_THREAD_START 0x00000004
 
 /******************************************************************************
  * STRUCTS
@@ -29,10 +28,11 @@ struct win32_GfxBuffer {
 
 // Struct encapsulating the game code handle
 struct win32_GameCode {
-    FILETIME        dllTimeStamp;   // timestamp of last write time
-    HMODULE         dllGameCode;    // game library
-    game_render*    gameRender;     // render function
-    bool            isValid;        // struct initialized
+    FILETIME            dllTimeStamp;   // timestamp of last write time
+    HMODULE             dllGameCode;    // game library
+    game_Render*        gameRender;     // render function
+    game_Init*          gameInit; // initalize memory function
+    bool                isValid;        // struct initialized
 };
 
 // Struct encapsulating the dimensions of the window
@@ -43,10 +43,13 @@ struct win32_WindowDimension {
 
 
 /******************************************************************************
- * External Bindings
+ * External Bindings - For Prototyping Purposes
  *****************************************************************************/
+#define WIN32_READ_FROM_DISK(name) void name(void)
+#define WIN32_WRITE_TO_DISK(name) void name(void)
 
-
+typedef WIN32_READ_FROM_DISK(win32_ReadFromDisk);
+typedef WIN32_WRITE_TO_DISK(win32_WriteToDisk);
 /******************************************************************************
  * Public Functions
  *****************************************************************************/
