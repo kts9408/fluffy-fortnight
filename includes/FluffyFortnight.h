@@ -1,5 +1,11 @@
 #ifndef FLUFFYFORTNIGHT_H
 #define FLUFFYFORTNIGHT_H
+/******************************************************************************
+ * PROTOTYPE
+ * 1    - Prototype build
+ * 0    - Release build
+ *****************************************************************************/
+#define PROTOTYPE 1
 
 /******************************************************************************
  * 
@@ -11,34 +17,37 @@
 /******************************************************************************
  * MACROS
  *****************************************************************************/
-#define KILOBYTES(value) ((value) * 1024)
-#define MEGABYTES(value) (KILOBYTES(value) * 1024)
-#define GIGABYTES(value) (MEGABYTES(value) * 1024)
+#define KILOBYTES(value) ((value) * 1024LL)
+#define MEGABYTES(value) (KILOBYTES(value) * 1024LL)
+#define GIGABYTES(value) (MEGABYTES(value) * 1024LL)
+#define ASSERT(exp) \
+    if(!(exp)) { *(uint32_t *)0 = 0; }
 
 /******************************************************************************
  * CONST
  *****************************************************************************/
-const int DEFAULT_GFX_BUFFER_WIDTH = 1280;
-const int DEFAULT_GFX_BUFFER_HEIGHT = 720;
+const int DEFAULT_GFX_BUFFER_WIDTH = 1920;
+const int DEFAULT_GFX_BUFFER_HEIGHT = 1080;
 
 
 
 /******************************************************************************
  * STRUCTS
  *****************************************************************************/
+struct game_State {
+    void*     win32ReadFromDisk;      
+    void*     win32WriteToDisk;
+};
 
 struct game_Memory {
     bool            isInitialized;                  
     uint64_t        permanentStorageSize;           // size of the persistant partition
-    game_State*     permanentStorage;               // persistant image
+    game_State*     permanentStorage;               // persistant image i.e. the game state
     uint64_t        tempStorageSize;                // size of the temporary partition
     void*           tempStorage;                    // temporary image
 };
 
-struct game_State {
-    // win32_ReadFromDisk*     win32ReadFromDisk;      
-    // win32_WriteToDisk*      win32WriteToDisk;
-};
+
 
 struct game_GfxBuffer {
     void*           memory;
@@ -56,8 +65,15 @@ struct game_Thread {
 /******************************************************************************
  * External Bindings
  *****************************************************************************/
+// PROTOTYPING CODE
+#if PROTOTYPE
+    void* win32_ReadFromDisk(char* filename);
+    bool win32_WriteToDisk(char* filename, uint32_t memorySize, void* memory);
+    void win32_FreeFileMemory(void* memory);
+#endif
+
 #define GAME_RENDER(name) void name(game_GfxBuffer *gfxBuffer)
-#define GAME_INIT(name) void name(game_Memory *memory)
+#define GAME_INIT(name) void name(void *memory)
 // TODO: Add additional bindings here
 
 /******************************************************************************
@@ -70,7 +86,6 @@ typedef GAME_INIT(game_Init);
 /******************************************************************************
  * Public Functions
  *****************************************************************************/
-
 
 
 #endif

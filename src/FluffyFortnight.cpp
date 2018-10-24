@@ -10,8 +10,10 @@ namespace {
    /***************************************************************************
     * Forward Declarations
     **************************************************************************/
-   void renderTestGradient(game_GfxBuffer* gfxBuffer);
-   void game_Init(game_Memory* memory);
+    void renderTestGradient(game_GfxBuffer* gfxBuffer);
+    void init(void* memory);
+    
+
 
    // End of Forward Declarations
 
@@ -40,9 +42,13 @@ namespace {
     /**************************************************************************
      * Initialize the Game Memory
      *************************************************************************/
-    void game_Init(game_Memory* memory) {
-        gameMemory = memory;
-        gameMemory->permanentStorageSize = MEGABYTES(64);
+    void game_Init(void* memory) {
+        gameMemory = (game_Memory*)memory;
+        gameMemory->permanentStorageSize = MEGABYTES(64LL);
+        gameMemory->tempStorageSize = GIGABYTES((uint64_t)4);
+        gameMemory->permanentStorage = {};                      // initialize state
+        gameMemory->tempStorage = (uint8_t*) + MEGABYTES(64);   // point set pointer to the beginning of temp space
+        gameMemory->isInitialized = true;
         // TODO: implement memory management
     }
 
@@ -55,5 +61,5 @@ extern "C" GAME_RENDER(renderGame) {
 }
 
 extern "C" GAME_INIT(initGame) {
-    initGame(memory);
+    init(memory);
 }

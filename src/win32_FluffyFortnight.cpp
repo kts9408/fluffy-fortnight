@@ -24,6 +24,7 @@ namespace {
     void win32_ProcessKeyboardInput(MSG* msg);
     void win32_FreeGameCode(win32_GameCode* input);
     void win32_CopyBufferToWindow(HDC window, int windowWidth, int windowHeight, win32_GfxBuffer* srcBuffer, int x, int y);      
+    void win32_InitXAudio2();
 
     // End of Forward Declaration
 
@@ -229,6 +230,7 @@ namespace {
         }
 
         input->gameRender = 0;
+        input->gameInit = 0;
         input->isValid = false;
     }
 
@@ -258,16 +260,16 @@ namespace {
      *************************************************************************/
     void win32_ProcessPendingMessages(HWND window) {
         MSG msg;
-        while(PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
+        while(PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {      // Poll Windows Message Queue
             switch(msg.message) {
-                case WM_SYSKEYDOWN:		
+                case WM_SYSKEYDOWN:		                    
 			    case WM_SYSKEYUP:		
 			    case WM_KEYDOWN:
-			    case WM_KEYUP: {
+			    case WM_KEYUP: {                            // On Keyboard Event Message
                     win32_ProcessKeyboardInput(&msg);
                 } break;
                 default: {
-                    TranslateMessage(&msg);
+                    TranslateMessage(&msg);                 // Propogate up to OS
                     DispatchMessage(&msg);
                 }break;
             }
@@ -280,34 +282,124 @@ namespace {
      * 
      *************************************************************************/
     void win32_ProcessKeyboardInput(MSG* msg) {
-        uint32_t vkCode = (uint32_t)msg->wParam;
-        bool wasDown = ((msg->lParam & (1 << 30)) != 0);
+        uint32_t vkCode = (uint32_t)msg->wParam;            // Unpack key
+        bool wasDown = ((msg->lParam & (1 << 30)) != 0);    // Unpack state
         bool isDown = ((msg->lParam & (1 << 31)) != 0);
-        bool altKeyWasDown = (msg->lParam & (1 << 29));
+        bool altKeyWasDown = (msg->lParam & (1 << 29));     // Unpack modifiers
 
-        running = !((vkCode == VK_F4) && (altKeyWasDown));
+        running = !((vkCode == VK_F4) && (altKeyWasDown));  // Check for Alt + F4
     }
 
+    
     /**************************************************************************
-     * 
+     * AudioCallback for XAudio2 Stub
      *************************************************************************/
     DWORD WINAPI win32_AudioCallback(LPVOID params) {
         return 1;
     }
 
+    /**************************************************************************
+     * Safely Truncates an unsigned 64-bit value to a 32-bit value
+     *************************************************************************/ 
+    inline uint32_t win32_TruncateUInt64(uint64_t value) {
+        ASSERT(value <= 0xffffffff);
+        uint32_t result = (uint32_t)value;
+        return result;
+    }
+
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    void win32_InitXAudio2() {
+//        CoInitialize(NULL, COINIT_MULTITHREADED);
+
+        IXAudio2* xAudio2                       = 0;                // Pointer to audio engine
+        IXAudio2SourceVoice* srcVoice           = 0;                // Pointer to source voice
+        IXAudio2MasteringVoice* masterVoice     = 0;                // Pointer to master voice
+        
+        // Initialize the Sound Format Parameters (Default config) TODO: Read these settings from a persistant config file.
+        WAVEFORMATEX waveFormat                 = {};
+        waveFormat.wFormatTag                   = WAVE_FORMAT_PCM;
+        waveFormat.nChannels                    = 2;
+        waveFormat.wBitsPerSample               = 16;
+        waveFormat.nSamplesPerSec               = 48000;
+        waveFormat.nBlockAlign                  = waveFormat.nSamplesPerSec * waveFormat.wBitsPerSample / 8;
+        waveFormat.nAvgBytesPerSec              = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
+        waveFormat.cbSize                       = 0;
+
+        XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
+        xAudio2->CreateMasteringVoice(&masterVoice);
+        xAudio2->CreateSourceVoice(&srcVoice, waveFormat);
+
+    }
+
+
 
 }       // End of Internal Methods
 
 /******************************************************************************
- * Public Methods - For Prototyping Purposes
+ * Public Methods
  *****************************************************************************/
-extern "C" WIN32_READ_FROM_DISK(readFromDisk) {
+#if PROTOTYPE       // Prototyping code not for actual release
+    /**************************************************************************
+     * Reads an entire file from disk and stores the data in memory (PROTOTYPING)
+     *************************************************************************/ 
+    uint16_t win32_ReadFromDisk(char* filename, void* out) {
+        uint16_t result = 0;            // initialize error code to general failure
+        HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ,  // Get a Handle to the File, Shared for Reading
+            0, OPEN_EXISTING, 0, 0);    // Throw error if it doesn't exist
+        LARGE_INTEGER fileSize;         // 64-bit integer to hold the file size (NTFS/EXT4 safe)
+        uint32_t fileSize32;            // 32-bit integer to pass into ReadFile (Legacy)
+        DWORD bytesRead = 0;
+        GetFileSizeEx(file, &fileSize); // 64-bit size of the file
+        fileSize32 = win32_TruncateUInt64(fileSize.QuadPart);   // safe cast to 32-bit
+        out = VirtualAlloc(0, fileSize.QuadPart,
+            MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);             // Allocate memory to store data
+        if(out) {                       // Memory successfuly allocated
+            if((ReadFile(file, out, fileSize32, &bytesRead, 0)) && (fileSize32 == bytesRead)) {
+                result = 1;             // Success!
+            } else {                    // Failed to Read or could not read entire file
+                result = 0xa;           // ERROR: Failed to Read File!
+                win32_FreeFileMemory(out);  // on failed read release memeory
+            }
+        } else {
+            result = 9;             // ERROR: Could not allocate memory for file!
+        }
+        CloseHandle(file);          // Close the File Handle
+        return result;              // return error code
+    }
 
-}
+    /**************************************************************************
+     * Writes a value from memory out to disk (PROTOTYPING)
+     *************************************************************************/
+    bool win32_WriteToDisk(char* filename, uint32_t memorySize, void* memory) {
+        uint16_t result = 0;        // initialize error code to general failure
+        HANDLE file = CreateFileA(filename, GENERIC_WRITE, 0,   
+            0, CREATE_ALWAYS, 0, 0);    // Get a handle to the file
+        LARGE_INTEGER fileSize;     // 64-bit int to store filesize (NTFS/EXT4 safe)
+        uint32_t fileSize32;        // 32-bit int to pass to WriteFile
+        DWORD bytesWritten = 0;
+        GetFileSizeEx(file, &fileSize); // Get filesize
+        fileSize32 = win32_TruncateUInt64(fileSize.QuadPart);   // safe cast to 32-bit
+    
+        if((WriteFile(file, memory, fileSize32, &bytesWritten, 0)) && (fileSize32 == bytesWritten)) {
+            result = 1;         // Success!
+        } else {
+            result = 0;         // ERROR: General Failure (for boolean logic)
+        }
+    
+        return result;
+    }
 
-extern "C" WIN32_WRITE_TO_DISK(writeToDisk) {
-
-}
+    /**************************************************************************
+     * Free memory allocated to store file data. (PROTOTYPING)
+     *************************************************************************/
+    void win32_FreeFileMemory(void* memory) {
+        if(memory) {
+            VirtualFree(memory, 0, MEM_RELEASE);
+        }
+    }   
+#endif      // end of Prototyping
 
 /******************************************************************************
  * Entry Point
@@ -329,12 +421,14 @@ int CALLBACK WinMain(
     void* audioParams               = 0;
     LPDWORD audioThreadId           = 0;
     HANDLE audioThread              = CreateThread(NULL, NULL, win32_AudioCallback, audioParams, DELAY_THREAD_START, audioThreadId);
+
     // TODO: Enumerate HW and determine appropriate memory footprint
-    
-    void* memory                    = VirtualAlloc(0, (SIZE_T)(MEGABYTES(64) + GIGABYTES(2)), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    void* memory                    = VirtualAlloc(0, (SIZE_T)((uint64_t)MEGABYTES(64) + (uint64_t)GIGABYTES(4)), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+
     for(int i = 0; i < 4; i++) {
         // TODO: Create Threads
     }
+
     errorCode = win32_LoadGameCode(dllName, &gameCode);     // load the game code      
     errorCode = win32_InitWindow(hInstance, mainWindow);    // create the Main Window
     frameBuffer = {};                        
@@ -350,6 +444,7 @@ int CALLBACK WinMain(
     }
 
     while((running)) {
+        gameCode.gameInit(memory);
 
         // update loaded code if needed
         win32_GetLastWriteTime(dllName, &dllWriteTime);

@@ -7,6 +7,7 @@
 
 // External Dependencies
 #include <Windows.h>
+#include <XAudio2.h>
 #include "..\includes\FluffyFortnight.h"
 
 /******************************************************************************
@@ -31,7 +32,7 @@ struct win32_GameCode {
     FILETIME            dllTimeStamp;   // timestamp of last write time
     HMODULE             dllGameCode;    // game library
     game_Render*        gameRender;     // render function
-    game_Init*          gameInit; // initalize memory function
+    game_Init*          gameInit;       // initalize memory function
     bool                isValid;        // struct initialized
 };
 
@@ -45,11 +46,7 @@ struct win32_WindowDimension {
 /******************************************************************************
  * External Bindings - For Prototyping Purposes
  *****************************************************************************/
-#define WIN32_READ_FROM_DISK(name) void name(void)
-#define WIN32_WRITE_TO_DISK(name) void name(void)
 
-typedef WIN32_READ_FROM_DISK(win32_ReadFromDisk);
-typedef WIN32_WRITE_TO_DISK(win32_WriteToDisk);
 /******************************************************************************
  * Public Functions
  *****************************************************************************/
