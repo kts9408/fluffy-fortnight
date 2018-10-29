@@ -26,19 +26,23 @@
 /******************************************************************************
  * CONST
  *****************************************************************************/
-const int DEFAULT_GFX_BUFFER_WIDTH = 1920;
-const int DEFAULT_GFX_BUFFER_HEIGHT = 1080;
+const int DEFAULT_GFX_BUFFER_WIDTH              = 1920;
+const int DEFAULT_GFX_BUFFER_HEIGHT             = 1080;
 
 
 
 /******************************************************************************
  * STRUCTS
  *****************************************************************************/
+
+// struct containing the state of the game persistant from frame to frame
 struct game_State {
-    void*     win32ReadFromDisk;      
+    void*     win32ReadFromDisk;                
     void*     win32WriteToDisk;
 };
 
+// struct containing the different memory partitions
+// TODO: implement a custom allocator to manage the working memory
 struct game_Memory {
     bool            isInitialized;                  
     uint64_t        permanentStorageSize;           // size of the persistant partition
@@ -48,7 +52,7 @@ struct game_Memory {
 };
 
 
-
+// struct representing a platform independent graphics buffer for the game to work with.
 struct game_GfxBuffer {
     void*           memory;
     int             width;
@@ -57,7 +61,14 @@ struct game_GfxBuffer {
     int             pitch;
 };
 
+// struct representing a platform independent sound buffer for the game to work with.
+// TODO: adding information for mixing (i.e. Volumen)
+struct game_SoundBuffer {
+    bool            isInitialized;
+    void*           memory;
+};
 
+// struct encapsulating a thread for the game to use.
 struct game_Thread {
     uint32_t*       threadId;
     void*           threadCallBack;
@@ -72,8 +83,9 @@ struct game_Thread {
     void win32_FreeFileMemory(void* memory);
 #endif
 
-#define GAME_RENDER(name) void name(game_GfxBuffer *gfxBuffer)
+#define GAME_RENDER_GFX(name) void name(game_GfxBuffer *gfxBuffer)
 #define GAME_INIT(name) void name(void *memory)
+#define GAME_RENDER_AUDIO(name) void name(game_SoundBuffer *soundBuffer)
 // TODO: Add additional bindings here
 
 /******************************************************************************
@@ -81,8 +93,9 @@ struct game_Thread {
  * renders the game screen to it.
  * @param gfxBuffer - The game_GfxBuffer struct to modify.
  *****************************************************************************/
-typedef GAME_RENDER(game_Render);
+typedef GAME_RENDER_GFX(game_RenderGfx);
 typedef GAME_INIT(game_Init);
+typedef GAME_RENDER_AUDIO(game_RenderAudio);
 /******************************************************************************
  * Public Functions
  *****************************************************************************/

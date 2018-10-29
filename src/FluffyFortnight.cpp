@@ -56,10 +56,14 @@ namespace {
 /******************************************************************************
  * Public Methods
  *****************************************************************************/
-extern "C" GAME_RENDER(renderGame) {
+extern "C" GAME_RENDER_GFX(renderGameGfx) {
     renderTestGradient(gfxBuffer);                          // renders a test gradient
 }
 
 extern "C" GAME_INIT(initGame) {
     init(memory);
+}
+
+extern "C" GAME_RENDER_AUDIO(renderGameAudio) {
+    
 }

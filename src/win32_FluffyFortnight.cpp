@@ -6,6 +6,7 @@
 namespace {
 
     win32_GfxBuffer frameBuffer;
+    XAUDIO2_BUFFER soundBuffer;
     bool running = true;
     /**************************************************************************
     * Internal Methods 
@@ -25,6 +26,7 @@ namespace {
     void win32_FreeGameCode(win32_GameCode* input);
     void win32_CopyBufferToWindow(HDC window, int windowWidth, int windowHeight, win32_GfxBuffer* srcBuffer, int x, int y);      
     void win32_InitXAudio2();
+    uint16_t win32_ProcessGameSound(game_SoundBuffer* in, XAUDIO2_BUFFER* out);
 
     // End of Forward Declaration
 
@@ -204,10 +206,11 @@ namespace {
         CopyFileA(dllName, tempDllName, false);                 // make a working copy of dll
         output->dllGameCode = LoadLibraryA(tempDllName);         // deploy OS hooks to load working dll
         if(output->dllGameCode) {                               // load successful
-            output->gameRender = (game_Render*)GetProcAddress(output->dllGameCode, "renderGame");
+            output->gameRenderGfx = (game_RenderGfx*)GetProcAddress(output->dllGameCode, "renderGameGfx");
             output->gameInit = (game_Init*)GetProcAddress(output->dllGameCode, "initGame");
+            output->gameRenderAudio = (game_RenderAudio*)GetProcAddress(output->dllGameCode, "renderGameAudio");
             win32_GetLastWriteTime(dllName, &(output->dllTimeStamp));
-            output->isValid = (output->gameRender != nullptr);    // set initialized flag
+            output->isValid = (output->gameRenderGfx != nullptr);    // set initialized flag
         } else {
             result = 7;                 // ERROR: Failed to read library
         }
@@ -229,9 +232,10 @@ namespace {
             FreeLibrary(input->dllGameCode);
         }
 
-        input->gameRender = 0;
-        input->gameInit = 0;
-        input->isValid = false;
+        input->gameRenderGfx        = 0;
+        input->gameRenderAudio      = 0;
+        input->gameInit             = 0;
+        input->isValid              = false;
     }
 
     /**************************************************************************
@@ -248,7 +252,8 @@ namespace {
             window,                             // destination
             0, 0, windowWidth, windowHeight,    // destination starting coordinates/dimensions to copy to
             0, 0,                               // source starting coordinates
-            srcBuffer->info.bmiHeader.biWidth, srcBuffer->info.bmiHeader.biHeight,  //source copy dimensions
+            srcBuffer->info.bmiHeader.biWidth,  // source copy dimensions
+            srcBuffer->info.bmiHeader.biHeight,  
             srcBuffer->memory,                  // data to copy/stretch
             &(srcBuffer->info),                 // header for data
             DIB_RGB_COLORS, SRCCOPY             // direct copy (non-palettized)
@@ -302,7 +307,7 @@ namespace {
      * Safely Truncates an unsigned 64-bit value to a 32-bit value
      *************************************************************************/ 
     inline uint32_t win32_TruncateUInt64(uint64_t value) {
-        ASSERT(value <= 0xffffffff);
+        ASSERT(!(value > 0xffffffff));
         uint32_t result = (uint32_t)value;
         return result;
     }
@@ -317,7 +322,8 @@ namespace {
         IXAudio2SourceVoice* srcVoice           = 0;                // Pointer to source voice
         IXAudio2MasteringVoice* masterVoice     = 0;                // Pointer to master voice
         
-        // Initialize the Sound Format Parameters (Default config) TODO: Read these settings from a persistant config file.
+        // Initialize the Sound Format Parameters (Default config)
+        // TODO: Read these settings from a persistant config file.
         WAVEFORMATEX waveFormat                 = {};
         waveFormat.wFormatTag                   = WAVE_FORMAT_PCM;
         waveFormat.nChannels                    = 2;
@@ -329,10 +335,22 @@ namespace {
 
         XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
         xAudio2->CreateMasteringVoice(&masterVoice);
-        xAudio2->CreateSourceVoice(&srcVoice, waveFormat);
+        xAudio2->CreateSourceVoice(&srcVoice, &waveFormat);
 
     }
-
+    /**************************************************************************
+     * Process Game Sound with XAudio
+     *************************************************************************/
+    uint16_t win32_ProcessGameSound(game_SoundBuffer* in, XAUDIO2_BUFFER* out) {
+        uint16_t result = 0;                    // initialize to general failure
+        if(in->isInitialized) {
+            out->AudioBytes = *(uint32_t*)in->memory;       // cast/dereference the audio buffer data to uint32 (required by XAudio2)
+            result = 1;                         // SUCCESS!
+        } else {
+            result = 0x0b;                      // ERROR:  Audio buffer not initialized
+        }
+        return result;
+    }
 
 
 }       // End of Internal Methods
@@ -437,7 +455,7 @@ int CALLBACK WinMain(
         DEFAULT_GFX_BUFFER_WIDTH,
         DEFAULT_GFX_BUFFER_HEIGHT
     );
-
+    game_SoundBuffer soundPushBuffer    = {};
     if(errorCode != 1) {     
         running = false;
         // TODO: Error Logging
@@ -453,16 +471,18 @@ int CALLBACK WinMain(
             errorCode = win32_LoadGameCode(dllName, &gameCode);
         }
 
-        // create and initialize a working buffer for the game code to manipulate
-        
+        // initialize a working buffer for the game code to manipulate
         pushBuffer.memory = frameBuffer.memory;
         pushBuffer.width = frameBuffer.info.bmiHeader.biWidth;
         pushBuffer.height = frameBuffer.info.bmiHeader.biHeight;
         pushBuffer.pitch = frameBuffer.pitch;
         pushBuffer.channelCount = frameBuffer.channelCount;
-		if (gameCode.gameRender) {
 
-			gameCode.gameRender(&pushBuffer);
+        // initialize a working sound buffer for the game code to manipulate
+
+		if (gameCode.isValid) {
+            gameCode.gameRenderAudio(&soundPushBuffer);
+			gameCode.gameRenderGfx(&pushBuffer);
 		}
         deviceContext = GetDC(mainWindow);
         win32_CopyBufferToWindow(
