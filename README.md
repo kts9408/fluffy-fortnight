@@ -13,3 +13,5 @@ ERROR CODE TABLE (Win32)
 8                   - Failed to Load Render Function
 9                   - Failed to Allocate Memory for File
 0xa                 - Failed to Read from file
+0xb                 - Failed to Start Audio Engine
+0xc                 - Audio buffer not initialized

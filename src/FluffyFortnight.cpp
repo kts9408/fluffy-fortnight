@@ -12,7 +12,8 @@ namespace {
     **************************************************************************/
     void renderTestGradient(game_GfxBuffer* gfxBuffer);
     void init(void* memory);
-    
+    void XAudio2TestSound(game_SoundBuffer* soundBuffer, float t);
+   
 
 
    // End of Forward Declarations
@@ -40,15 +41,38 @@ namespace {
 
     }
     /**************************************************************************
+     * Generate a test sound wave formatted for XAudio2 (Win32 Audio Engine)
+     *************************************************************************/
+    void XAudio2TestSound(game_SoundBuffer* soundBuffer, float t) {
+        soundBuffer->isInitialized      = true;
+        soundBuffer->samplesPerSecond   = 48000;
+        uint32_t toneVolume             = 3000;
+        int toneHz                      = 256;
+        int wavePeriod                  = (soundBuffer->samplesPerSecond) / toneHz;
+        soundBuffer->sampleCount        = 48000 * 2;
+        uint32_t* out                   = (uint32_t*)(soundBuffer->samples);            // XAudio2 Test Sound
+
+        // Fill the sound buffer with a sine wave.
+        for(int sampleIndex = 0; sampleIndex < soundBuffer->sampleCount; sampleIndex++) {
+            float sineValue         = sinf(t);
+            int32_t sampleValue     = (int32_t)(sineValue * toneVolume);
+            *out++                  = sampleValue;
+            t                       += 2.0f * PI32 / (float)wavePeriod;
+        }
+
+    }
+
+    /**************************************************************************
      * Initialize the Game Memory
      *************************************************************************/
-    void game_Init(void* memory) {
+    void init(void* memory) {
         gameMemory = (game_Memory*)memory;
-        gameMemory->permanentStorageSize = MEGABYTES(64LL);
-        gameMemory->tempStorageSize = GIGABYTES((uint64_t)4);
-        gameMemory->permanentStorage = {};                      // initialize state
-        gameMemory->tempStorage = (uint8_t*) + MEGABYTES(64);   // point set pointer to the beginning of temp space
-        gameMemory->isInitialized = true;
+        gameMemory->permanentStorageSize        = MEGABYTES(64LL);
+        gameMemory->tempStorageSize             = GIGABYTES((uint64_t)4);
+        gameMemory->permanentStorage            = {};                      // initialize state
+        gameMemory->permanentStorage->t         = 0.0f;
+        gameMemory->tempStorage                 = (uint8_t*) + MEGABYTES(64);   // point set pointer to the beginning of temp space
+        gameMemory->isInitialized               = true;
         // TODO: implement memory management
     }
 
@@ -65,5 +89,5 @@ extern "C" GAME_INIT(initGame) {
 }
 
 extern "C" GAME_RENDER_AUDIO(renderGameAudio) {
-    
+    XAudio2TestSound(soundBuffer, gameMemory->permanentStorage->t);
 }

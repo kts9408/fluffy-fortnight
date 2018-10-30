@@ -13,6 +13,10 @@
 
 // External Dependencies
 #include <stdint.h>
+// PROTOTYPING - TODO: Replace math functions with more efficent versions
+#if PROTOTYPE
+    #include <math.h>              
+#endif
 
 /******************************************************************************
  * MACROS
@@ -28,6 +32,7 @@
  *****************************************************************************/
 const int DEFAULT_GFX_BUFFER_WIDTH              = 1920;
 const int DEFAULT_GFX_BUFFER_HEIGHT             = 1080;
+const float PI32                                = 3.14159265359f;
 
 
 
@@ -37,8 +42,7 @@ const int DEFAULT_GFX_BUFFER_HEIGHT             = 1080;
 
 // struct containing the state of the game persistant from frame to frame
 struct game_State {
-    void*     win32ReadFromDisk;                
-    void*     win32WriteToDisk;
+    float          t;                                  // persistent time           
 };
 
 // struct containing the different memory partitions
@@ -62,10 +66,13 @@ struct game_GfxBuffer {
 };
 
 // struct representing a platform independent sound buffer for the game to work with.
-// TODO: adding information for mixing (i.e. Volumen)
+// TODO: adding information for mixing (i.e. Volume)
+// TODO: add ENUM for underlying different underlying engines
 struct game_SoundBuffer {
     bool            isInitialized;
-    void*           memory;
+    int             samplesPerSecond;
+    int             sampleCount;
+    void*           samples;
 };
 
 // struct encapsulating a thread for the game to use.

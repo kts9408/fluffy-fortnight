@@ -4,9 +4,9 @@
  * Internal Methods 
  *****************************************************************************/
 namespace {
-
     win32_GfxBuffer frameBuffer;
-    XAUDIO2_BUFFER soundBuffer;
+    win32_SoundEngine audioEngine;
+    
     bool running = true;
     /**************************************************************************
     * Internal Methods 
@@ -315,10 +315,11 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/
-    void win32_InitXAudio2() {
-//        CoInitialize(NULL, COINIT_MULTITHREADED);
+    uint16_t win32_InitXAudio2(win32_SoundEngine* out) {
+        uint16_t result                         = 0;                // initialize to general failure
+        HMODULE xAudioLib                       = LoadLibraryA("XAUDIO2_9.DLL");
 
-        IXAudio2* xAudio2                       = 0;                // Pointer to audio engine
+        IXAudio2* xAudio                        = 0;
         IXAudio2SourceVoice* srcVoice           = 0;                // Pointer to source voice
         IXAudio2MasteringVoice* masterVoice     = 0;                // Pointer to master voice
         
@@ -329,14 +330,30 @@ namespace {
         waveFormat.nChannels                    = 2;
         waveFormat.wBitsPerSample               = 16;
         waveFormat.nSamplesPerSec               = 48000;
-        waveFormat.nBlockAlign                  = waveFormat.nSamplesPerSec * waveFormat.wBitsPerSample / 8;
+        waveFormat.nBlockAlign                  = ((WORD)waveFormat.nSamplesPerSec) * waveFormat.wBitsPerSample / 8;
         waveFormat.nAvgBytesPerSec              = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
         waveFormat.cbSize                       = 0;
+        //        CoInitialize(NULL, COINIT_MULTITHREADED);
 
-        XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
-        xAudio2->CreateMasteringVoice(&masterVoice);
-        xAudio2->CreateSourceVoice(&srcVoice, &waveFormat);
-
+        if(xAudioLib) {
+            xaudio_Create* XAudio2Create        = (xaudio_Create*)GetProcAddress(xAudioLib, "XAudio2Create");
+            XAudio2Create(&xAudio, 0, XAUDIO2_DEFAULT_PROCESSOR);
+            if(xAudio) {
+                xAudio->CreateMasteringVoice(&masterVoice);
+                xAudio->CreateSourceVoice(&srcVoice, &waveFormat);
+                out->xAudio             = xAudio;
+                out->masterVoice        = masterVoice;
+                out->srcVoice           = srcVoice;
+                result                  = 1;        // Success!
+            } else {
+                // ERROR: Failed to Start Audio Engine
+                result                  = 0xb;   
+            }
+        } else {
+            // ERROR: Failed to Start Audio Engine
+            result                      = 0xb;   
+        }
+        return result;
     }
     /**************************************************************************
      * Process Game Sound with XAudio
@@ -344,10 +361,11 @@ namespace {
     uint16_t win32_ProcessGameSound(game_SoundBuffer* in, XAUDIO2_BUFFER* out) {
         uint16_t result = 0;                    // initialize to general failure
         if(in->isInitialized) {
-            out->AudioBytes = *(uint32_t*)in->memory;       // cast/dereference the audio buffer data to uint32 (required by XAudio2)
+            out->AudioBytes = *(uint32_t*)in->samples;       // cast/dereference the audio buffer data to uint32 (required by XAudio2)
+            audioEngine.srcVoice->SubmitSourceBuffer(out);
             result = 1;                         // SUCCESS!
         } else {
-            result = 0x0b;                      // ERROR:  Audio buffer not initialized
+            result = 0xc;                      // ERROR:  Audio buffer not initialized
         }
         return result;
     }
@@ -420,7 +438,7 @@ namespace {
 #endif      // end of Prototyping
 
 /******************************************************************************
- * Entry Point
+ * ~~~~~ Entry Point ~~~~~
  *****************************************************************************/
 int CALLBACK WinMain(
     HINSTANCE hInstance,        // handle to current instance
@@ -433,7 +451,7 @@ int CALLBACK WinMain(
     char* dllName                   = "FluffyFortnight.dll";
     game_GfxBuffer pushBuffer       = {};                         // create the push buffer
     win32_GameCode gameCode         = {};                         // create the external code library
-    FILETIME dllWriteTime;
+    
     uint16_t errorCode;
     // HANDLE threadPool[4];
     void* audioParams               = 0;
@@ -442,6 +460,8 @@ int CALLBACK WinMain(
 
     // TODO: Enumerate HW and determine appropriate memory footprint
     void* memory                    = VirtualAlloc(0, (SIZE_T)((uint64_t)MEGABYTES(64) + (uint64_t)GIGABYTES(4)), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+
+    
 
     for(int i = 0; i < 4; i++) {
         // TODO: Create Threads
@@ -456,6 +476,7 @@ int CALLBACK WinMain(
         DEFAULT_GFX_BUFFER_HEIGHT
     );
     game_SoundBuffer soundPushBuffer    = {};
+    win32_InitXAudio2(&audioEngine);
     if(errorCode != 1) {     
         running = false;
         // TODO: Error Logging
@@ -465,8 +486,9 @@ int CALLBACK WinMain(
         gameCode.gameInit(memory);
 
         // update loaded code if needed
+        FILETIME dllWriteTime = {};
         win32_GetLastWriteTime(dllName, &dllWriteTime);
-        if(CompareFileTime(&dllWriteTime, &(gameCode.dllTimeStamp)) != 0) { 
+        if(CompareFileTime(&dllWriteTime, &gameCode.dllTimeStamp) != 0) { 
             win32_FreeGameCode(&gameCode);
             errorCode = win32_LoadGameCode(dllName, &gameCode);
         }
@@ -481,17 +503,19 @@ int CALLBACK WinMain(
         // initialize a working sound buffer for the game code to manipulate
 
 		if (gameCode.isValid) {
-            gameCode.gameRenderAudio(&soundPushBuffer);
-			gameCode.gameRenderGfx(&pushBuffer);
+            gameCode.gameRenderAudio(&soundPushBuffer);         // Call the game to fill an audio buffer
+			gameCode.gameRenderGfx(&pushBuffer);                // Call the game to fill a graphics buffer
 		}
-        deviceContext = GetDC(mainWindow);
-        win32_CopyBufferToWindow(
+        win32_ProcessGameSound(&soundPushBuffer, audioEngine.soundBuffer);      // push the game audio to the XAudio2 buffer
+        audioEngine.srcVoice->Start(0);                         // Start playing the buffer
+        deviceContext = GetDC(mainWindow);                      // Get a device context to the window
+        win32_CopyBufferToWindow(                               // FLIP
             deviceContext,
             DEFAULT_GFX_BUFFER_WIDTH, DEFAULT_GFX_BUFFER_HEIGHT,
             &frameBuffer, 0, 0
         );
 
-        win32_ProcessPendingMessages(mainWindow);
+        win32_ProcessPendingMessages(mainWindow);               // Check message queue
 
     }
 }
