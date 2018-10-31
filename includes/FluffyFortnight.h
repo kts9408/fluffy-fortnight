@@ -50,7 +50,7 @@ struct game_State {
 struct game_Memory {
     bool            isInitialized;                  
     uint64_t        permanentStorageSize;           // size of the persistant partition
-    game_State*     permanentStorage;               // persistant image i.e. the game state
+    void*           permanentStorage;               // persistant image i.e. the game state
     uint64_t        tempStorageSize;                // size of the temporary partition
     void*           tempStorage;                    // temporary image
 };
