@@ -42,16 +42,20 @@ const float PI32                                = 3.14159265359f;
 
 // struct containing the state of the game persistant from frame to frame
 struct game_State {
-    float          t;                                  // persistent time           
+    float*          t;                                  // persistent time           
 };
 
 // struct containing the different memory partitions
 // TODO: implement a custom allocator to manage the working memory
 struct game_Memory {
     bool            isInitialized;                  
+    
     uint64_t        permanentStorageSize;           // size of the persistant partition
     void*           permanentStorage;               // persistant image i.e. the game state
+    uint8_t*        permanentStorageHead;           
+
     uint64_t        tempStorageSize;                // size of the temporary partition
+    uint8_t*        tempStorageHead;                //
     void*           tempStorage;                    // temporary image
 };
 
