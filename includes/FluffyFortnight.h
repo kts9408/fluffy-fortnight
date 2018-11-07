@@ -15,7 +15,7 @@
 #include <stdint.h>
 // PROTOTYPING - TODO: Replace math functions with more efficent versions
 #if PROTOTYPE
-    #include <math.h>              
+#include <math.h>              
 #endif
 
 /******************************************************************************
@@ -24,6 +24,7 @@
 #define KILOBYTES(value) ((value) * 1024LL)
 #define MEGABYTES(value) (KILOBYTES(value) * 1024LL)
 #define GIGABYTES(value) (MEGABYTES(value) * 1024LL)
+#define TERABYTES(value) (GIGABYTES(value) * 1024LL)
 #define ASSERT(exp) \
     if(!(exp)) { *(uint32_t *)0 = 0; }
 
@@ -50,13 +51,13 @@ struct game_State {
 struct game_Memory {
     bool            isInitialized;                  
     
-    uint64_t        permanentStorageSize;           // size of the persistant partition
-    void*           permanentStorage;               // persistant image i.e. the game state
-    uint8_t*        permanentStorageHead;           
+    uint64_t        persistentStorageSize;           // size of the persistent partition
+    void*           persistentStorage;               // next available byte of persistent memory
+    void*           persistentStorageHead;           // start of persistent memory
 
     uint64_t        tempStorageSize;                // size of the temporary partition
-    uint8_t*        tempStorageHead;                //
-    void*           tempStorage;                    // temporary image
+    void*           tempStorageHead;                // start of working memory
+    void*           tempStorage;                    // next available byte of working memory
 };
 
 
@@ -76,7 +77,7 @@ struct game_SoundBuffer {
     bool            isInitialized;
     int             samplesPerSecond;
     int             sampleCount;
-    void*           samples;
+    uint16_t*       samples;
 };
 
 // struct encapsulating a thread for the game to use.
@@ -95,7 +96,7 @@ struct game_Thread {
 #endif
 
 #define GAME_RENDER_GFX(name) void name(game_GfxBuffer *gfxBuffer)
-#define GAME_INIT(name) void name(void *memory)
+#define GAME_INIT(name) void name(game_Memory* memory)
 #define GAME_RENDER_AUDIO(name) void name(game_SoundBuffer *soundBuffer)
 // TODO: Add additional bindings here
 

@@ -3,7 +3,7 @@
 namespace {
     
     game_Memory*        gameMemory;
-    game_State*         gameState;
+    game_State          gameState;
     /**************************************************************************
     * Internal Methods 
     **************************************************************************/
@@ -12,7 +12,7 @@ namespace {
     * Forward Declarations
     **************************************************************************/
     void renderTestGradient(game_GfxBuffer* gfxBuffer);
-    void init(void* memory);
+    void init(game_Memory* memory);
     void XAudio2TestSound(game_SoundBuffer* soundBuffer, float t);
    
 
@@ -47,18 +47,19 @@ namespace {
     void XAudio2TestSound(game_SoundBuffer* soundBuffer, float t) {
         soundBuffer->isInitialized      = true;
         soundBuffer->samplesPerSecond   = 48000;
-        uint32_t toneVolume             = 3000;
+        uint16_t toneVolume             = 3000;
         int toneHz                      = 256;
         int wavePeriod                  = (soundBuffer->samplesPerSecond) / toneHz;
         soundBuffer->sampleCount        = 48000 * 2;
-        uint32_t* out                   = (uint32_t*)(soundBuffer->samples);            // XAudio2 Test Sound
+        uint16_t* out                   = (uint16_t*)(soundBuffer->samples);            // XAudio2 Test Sound
 
         // Fill the sound buffer with a sine wave.
         for(int sampleIndex = 0; sampleIndex < soundBuffer->sampleCount; sampleIndex++) {
             float sineValue         = sinf(t);
-            int32_t sampleValue     = (int32_t)(sineValue * toneVolume);
-            *out++                  = sampleValue;
-            t                       += 2.0f * PI32 / (float)wavePeriod;
+            int16_t sampleValue     = (int16_t)(sineValue * toneVolume);
+            *out++ = sampleValue;
+			*out++ = sampleValue;
+            t += 2.0f * PI32 / (float)wavePeriod;
         }
 
     }
@@ -66,16 +67,27 @@ namespace {
     /**************************************************************************
      * Initialize the Game Memory
      *************************************************************************/
-    void init(void* memory) {
+    void init(game_Memory* memory) {
+
+        #if PROTOTYPE
+        // PROTOTYPING - cold cast to memory
+        gameMemory = memory;
+        
+        #else
+        // TODO: Proper Stack Allocator
         gameMemory                              = {};
-        gameMemory->permanentStorageSize        = MEGABYTES(64LL);
-        gameMemory->tempStorageSize             = GIGABYTES(4LL);
-        gameMemory->permanentStorage            = memory;
-        gameMemory->permanentStorageHead        = (uint8_t*)memory;
-        gameMemory->tempStorageHead             = (uint8_t*)memory + (gameMemory->permanentStorageSize);
-        gameMemory->tempStorage                 = (uint8_t*)memory + (gameMemory->permanentStorageSize);   // point set pointer to the beginning of temp space
-        gameState->t                            = (float*)(gameMemory->permanentStorage);
-        gameMemory->permanentStorage            = (float*)(gameMemory->permanentStorage) + 1;
+        gameMemory->persistentStorageSize       = MEGABYTES(64);
+        gameMemory->tempStorageSize             = GIGABYTES(4);
+        gameMemory->persistentStorage           = (uint8_t*)memory;
+        gameMemory->persistentStorageHead       = (uint8_t*)memory;
+        gameMemory->tempStorageHead             = (uint8_t*)memory + (gameMemory->persistentStorageSize);
+        gameMemory->tempStorage                 = (uint8_t*)memory + (gameMemory->persistentStorageSize);   // point set pointer to the beginning of temp space
+        #endif
+
+
+        gameState.t                             = (float*)(gameMemory->persistentStorage);
+        //gameMemory->persistentStorage            = (float*)(gameMemory->persistentStorage);
+        ++*(float*)(gameMemory->persistentStorage);
 
 
         
@@ -96,5 +108,5 @@ extern "C" GAME_INIT(initGame) {
 }
 
 extern "C" GAME_RENDER_AUDIO(renderGameAudio) {
-    XAudio2TestSound(soundBuffer, *gameState->t);
+    XAudio2TestSound(soundBuffer, *gameState.t);
 }

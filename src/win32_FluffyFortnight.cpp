@@ -456,10 +456,25 @@ int CALLBACK WinMain(
     // HANDLE threadPool[4];
     void* audioParams               = 0;
     LPDWORD audioThreadId           = 0;
-    HANDLE audioThread              = CreateThread(NULL, NULL, win32_AudioCallback, audioParams, DELAY_THREAD_START, audioThreadId);
+    //HANDLE audioThread              = CreateThread(NULL, NULL, win32_AudioCallback, audioParams, DELAY_THREAD_START, audioThreadId);
+    game_Memory memory              = {};
+    LPVOID baseAddress              = 0;
 
     // TODO: Enumerate HW and determine appropriate memory footprint
-    void* memory                    = VirtualAlloc(0, (SIZE_T)((uint64_t)MEGABYTES(64) + (uint64_t)GIGABYTES(4)), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    #if PROTOTYPE
+    baseAddress                     = (LPVOID)TERABYTES(2);         // set base address for game memory so pointers are the same between runs DEBUGGING
+    memory.persistentStorageSize    = MEGABYTES(64);                // set the size of the persistent memory partition
+    memory.tempStorageSize          = GIGABYTES(4);                 // set the size of the working memory partition
+
+    // Allocate game memory
+    memory.persistentStorage        = VirtualAlloc(baseAddress, memory.persistentStorageSize + memory.tempStorageSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    memory.persistentStorageHead    = (void*)baseAddress;                                                // set the start of persistent partition (lower values of game memory)
+    memory.tempStorage              = (uint8_t*)memory.persistentStorage + memory.persistentStorageSize;    // set temporary partition
+    memory.tempStorageHead          = (uint8_t*)memory.persistentStorage + memory.persistentStorageSize;    // set the start of temporary partition
+    #else
+    void* memory                    = VirtualAlloc(baseAddress, (SIZE_T)((uint64_t)MEGABYTES(64) + (uint64_t)GIGABYTES(4)), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    #endif
+
 
     
 
@@ -476,14 +491,18 @@ int CALLBACK WinMain(
         DEFAULT_GFX_BUFFER_HEIGHT
     );
     game_SoundBuffer soundPushBuffer    = {};
-    win32_InitXAudio2(&audioEngine);
+    int soundBufferSize = 48000 * sizeof(uint16_t) * 2;
+    soundPushBuffer.samples             = (uint16_t*)VirtualAlloc(0, soundBufferSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    soundPushBuffer.isInitialized       = true;
+    //win32_InitXAudio2(&audioEngine);
     if(errorCode != 1) {     
         running = false;
         // TODO: Error Logging
     }
 
+    gameCode.gameInit(&memory);
+
     while((running)) {
-        gameCode.gameInit(memory);
 
         // update loaded code if needed
         FILETIME dllWriteTime = {};
@@ -503,11 +522,11 @@ int CALLBACK WinMain(
         // initialize a working sound buffer for the game code to manipulate
 
 		if (gameCode.isValid) {
-            gameCode.gameRenderAudio(&soundPushBuffer);         // Call the game to fill an audio buffer
+            //gameCode.gameRenderAudio(&soundPushBuffer);         // Call the game to fill an audio buffer
 			gameCode.gameRenderGfx(&pushBuffer);                // Call the game to fill a graphics buffer
 		}
-        win32_ProcessGameSound(&soundPushBuffer, audioEngine.soundBuffer);      // push the game audio to the XAudio2 buffer
-        audioEngine.srcVoice->Start(0);                         // Start playing the buffer
+        //win32_ProcessGameSound(&soundPushBuffer, audioEngine.soundBuffer);      // push the game audio to the XAudio2 buffer
+        //audioEngine.srcVoice->Start(0);                         // Start playing the buffer
         deviceContext = GetDC(mainWindow);                      // Get a device context to the window
         win32_CopyBufferToWindow(                               // FLIP
             deviceContext,
