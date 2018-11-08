@@ -13,7 +13,7 @@ namespace {
     **************************************************************************/
     void renderTestGradient(game_GfxBuffer* gfxBuffer);
     void init(game_Memory* memory);
-    void XAudio2TestSound(game_SoundBuffer* soundBuffer, float t);
+    void XAudio2TestSound(game_SoundBuffer* soundBuffer);
    
 
 
@@ -44,17 +44,15 @@ namespace {
     /**************************************************************************
      * Generate a test sound wave formatted for XAudio2 (Win32 Audio Engine)
      *************************************************************************/
-    void XAudio2TestSound(game_SoundBuffer* soundBuffer, float t) {
-        soundBuffer->isInitialized      = true;
-        soundBuffer->samplesPerSecond   = 48000;
+    void XAudio2TestSound(game_SoundBuffer* soundBuffer) {   
         uint16_t toneVolume             = 3000;
         int toneHz                      = 256;
         int wavePeriod                  = (soundBuffer->samplesPerSecond) / toneHz;
-        soundBuffer->sampleCount        = 48000 * 2;
         uint16_t* out                   = (uint16_t*)(soundBuffer->samples);            // XAudio2 Test Sound
+        float t                         = 0.0f;
 
         // Fill the sound buffer with a sine wave.
-        for(int sampleIndex = 0; sampleIndex < soundBuffer->sampleCount; sampleIndex++) {
+        for(int i = 0; i < soundBuffer->sampleCount; i++) {
             float sineValue         = sinf(t);
             int16_t sampleValue     = (int16_t)(sineValue * toneVolume);
             *out++ = sampleValue;
@@ -108,5 +106,5 @@ extern "C" GAME_INIT(initGame) {
 }
 
 extern "C" GAME_RENDER_AUDIO(renderGameAudio) {
-    XAudio2TestSound(soundBuffer, *gameState.t);
+    XAudio2TestSound(soundBuffer);
 }

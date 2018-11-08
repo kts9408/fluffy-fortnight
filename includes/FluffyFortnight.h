@@ -77,6 +77,7 @@ struct game_SoundBuffer {
     bool            isInitialized;
     int             samplesPerSecond;
     int             sampleCount;
+    int             bufferSize;
     uint16_t*       samples;
 };
 

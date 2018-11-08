@@ -34,9 +34,9 @@ struct win32_GfxBuffer {
 
 // Strut representing XAudio2
 struct win32_SoundEngine {
-    XAUDIO2_BUFFER*                 soundBuffer;    // buffer used by audio engine
+    WAVEFORMATEX                    waveFormat;
+    XAUDIO2_BUFFER                  soundBuffer;    // buffer used by audio engine
     IXAudio2*                       xAudio;         // Pointer to audio Engine
-    IXAudio2SourceVoice*            srcVoice;       // Pointer to source voice
     IXAudio2MasteringVoice*         masterVoice;    // Pointer to master voice
 };
 

@@ -25,7 +25,7 @@ namespace {
     void win32_ProcessKeyboardInput(MSG* msg);
     void win32_FreeGameCode(win32_GameCode* input);
     void win32_CopyBufferToWindow(HDC window, int windowWidth, int windowHeight, win32_GfxBuffer* srcBuffer, int x, int y);      
-    void win32_InitXAudio2();
+    uint16_t win32_InitXAudio2(win32_SoundEngine* out);
     uint16_t win32_ProcessGameSound(game_SoundBuffer* in, XAUDIO2_BUFFER* out);
 
     // End of Forward Declaration
@@ -96,7 +96,7 @@ namespace {
         buffer->info.bmiHeader.biHeight = height;
         buffer->info.bmiHeader.biPlanes = 1;
         buffer->info.bmiHeader.biBitCount = 32;                     // Force 32-bit color to force DWORD aligned
-        buffer->info.bmiHeader.biCompression = BI_RGB;               // use No Compression
+        buffer->info.bmiHeader.biCompression = BI_RGB;              // use No Compression
 
         int memSz = width * height * buffer->channelCount;
         buffer->memory = VirtualAlloc(
@@ -318,32 +318,37 @@ namespace {
     uint16_t win32_InitXAudio2(win32_SoundEngine* out) {
         uint16_t result                         = 0;                // initialize to general failure
         HMODULE xAudioLib                       = LoadLibraryA("XAUDIO2_9.DLL");
-
-        IXAudio2* xAudio                        = 0;
-        IXAudio2SourceVoice* srcVoice           = 0;                // Pointer to source voice
-        IXAudio2MasteringVoice* masterVoice     = 0;                // Pointer to master voice
+        WAVEFORMATEX* waveFormat                = &out->waveFormat;
+        XAUDIO2_BUFFER* soundBuffer             = &out->soundBuffer;                // Pointer to XAudio2 sound buffer
         
         // Initialize the Sound Format Parameters (Default config)
         // TODO: Read these settings from a persistant config file.
-        WAVEFORMATEX waveFormat                 = {};
-        waveFormat.wFormatTag                   = WAVE_FORMAT_PCM;
-        waveFormat.nChannels                    = 2;
-        waveFormat.wBitsPerSample               = 16;
-        waveFormat.nSamplesPerSec               = 48000;
-        waveFormat.nBlockAlign                  = ((WORD)waveFormat.nSamplesPerSec) * waveFormat.wBitsPerSample / 8;
-        waveFormat.nAvgBytesPerSec              = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
-        waveFormat.cbSize                       = 0;
+        waveFormat->wFormatTag                  = WAVE_FORMAT_PCM;
+        waveFormat->nChannels                   = 2;
+        waveFormat->wBitsPerSample              = 16;
+        waveFormat->nSamplesPerSec              = 48000;
+        waveFormat->nBlockAlign                 = ((WORD)waveFormat->nSamplesPerSec) * waveFormat->wBitsPerSample / 8;
+        waveFormat->nAvgBytesPerSec             = waveFormat->nSamplesPerSec * waveFormat->nBlockAlign;
+        waveFormat->cbSize                      = 0;
+
+        // Initalize the Sound Buffer Parameters (Default config)
+        // TODO: Read these settings from a persistant config file.
+        soundBuffer->Flags                           = 0;                
+        soundBuffer->AudioBytes                      = XAUDIO2_MAX_BUFFER_BYTES;
+        soundBuffer->pAudioData                      = 0;
+        soundBuffer->PlayBegin                       = 0;
+        soundBuffer->PlayLength                      = 0;
+        soundBuffer->LoopBegin                       = 0;
+        soundBuffer->LoopLength                      = 0;
+        soundBuffer->LoopCount                       = XAUDIO2_LOOP_INFINITE;
+        soundBuffer->pContext                        = 0;
         //        CoInitialize(NULL, COINIT_MULTITHREADED);
 
         if(xAudioLib) {
             xaudio_Create* XAudio2Create        = (xaudio_Create*)GetProcAddress(xAudioLib, "XAudio2Create");
-            XAudio2Create(&xAudio, 0, XAUDIO2_DEFAULT_PROCESSOR);
-            if(xAudio) {
-                xAudio->CreateMasteringVoice(&masterVoice);
-                xAudio->CreateSourceVoice(&srcVoice, &waveFormat);
-                out->xAudio             = xAudio;
-                out->masterVoice        = masterVoice;
-                out->srcVoice           = srcVoice;
+            XAudio2Create(&out->xAudio, 0, XAUDIO2_DEFAULT_PROCESSOR);
+            if(out->xAudio) {
+                out->xAudio->CreateMasteringVoice(&out->masterVoice);
                 result                  = 1;        // Success!
             } else {
                 // ERROR: Failed to Start Audio Engine
@@ -360,9 +365,12 @@ namespace {
      *************************************************************************/
     uint16_t win32_ProcessGameSound(game_SoundBuffer* in, XAUDIO2_BUFFER* out) {
         uint16_t result = 0;                    // initialize to general failure
+        IXAudio2SourceVoice* srcVoice        = 0;
         if(in->isInitialized) {
-            out->AudioBytes = *(uint32_t*)in->samples;       // cast/dereference the audio buffer data to uint32 (required by XAudio2)
-            audioEngine.srcVoice->SubmitSourceBuffer(out);
+            out->pAudioData = (uint8_t*)in->samples;       // cast/dereference the audio buffer data to BYTE (required by XAudio2)
+            audioEngine.xAudio->CreateSourceVoice(&srcVoice, &audioEngine.waveFormat);
+            srcVoice->SubmitSourceBuffer(out);
+            srcVoice->Start();
             result = 1;                         // SUCCESS!
         } else {
             result = 0xc;                      // ERROR:  Audio buffer not initialized
@@ -377,64 +385,63 @@ namespace {
  * Public Methods
  *****************************************************************************/
 #if PROTOTYPE       // Prototyping code not for actual release
-    /**************************************************************************
-     * Reads an entire file from disk and stores the data in memory (PROTOTYPING)
-     *************************************************************************/ 
-    uint16_t win32_ReadFromDisk(char* filename, void* out) {
-        uint16_t result = 0;            // initialize error code to general failure
-        HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ,  // Get a Handle to the File, Shared for Reading
-            0, OPEN_EXISTING, 0, 0);    // Throw error if it doesn't exist
-        LARGE_INTEGER fileSize;         // 64-bit integer to hold the file size (NTFS/EXT4 safe)
-        uint32_t fileSize32;            // 32-bit integer to pass into ReadFile (Legacy)
-        DWORD bytesRead = 0;
-        GetFileSizeEx(file, &fileSize); // 64-bit size of the file
-        fileSize32 = win32_TruncateUInt64(fileSize.QuadPart);   // safe cast to 32-bit
-        out = VirtualAlloc(0, fileSize.QuadPart,
-            MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);             // Allocate memory to store data
-        if(out) {                       // Memory successfuly allocated
-            if((ReadFile(file, out, fileSize32, &bytesRead, 0)) && (fileSize32 == bytesRead)) {
-                result = 1;             // Success!
-            } else {                    // Failed to Read or could not read entire file
-                result = 0xa;           // ERROR: Failed to Read File!
-                win32_FreeFileMemory(out);  // on failed read release memeory
-            }
-        } else {
-            result = 9;             // ERROR: Could not allocate memory for file!
+/**************************************************************************
+ * Reads an entire file from disk and stores the data in memory (PROTOTYPING)
+ *************************************************************************/ 
+uint16_t win32_ReadFromDisk(char* filename, void* out) {
+    uint16_t result = 0;            // initialize error code to general failure
+    HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ,  // Get a Handle to the File, Shared for Reading
+        0, OPEN_EXISTING, 0, 0);    // Throw error if it doesn't exist
+    LARGE_INTEGER fileSize;         // 64-bit integer to hold the file size (NTFS/EXT4 safe)
+    uint32_t fileSize32;            // 32-bit integer to pass into ReadFile (Legacy)
+    DWORD bytesRead = 0;
+    GetFileSizeEx(file, &fileSize); // 64-bit size of the file
+    fileSize32 = win32_TruncateUInt64(fileSize.QuadPart);   // safe cast to 32-bit
+    out = VirtualAlloc(0, fileSize.QuadPart,
+        MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);             // Allocate memory to store data
+    if(out) {                       // Memory successfuly allocated
+        if((ReadFile(file, out, fileSize32, &bytesRead, 0)) && (fileSize32 == bytesRead)) {
+            result = 1;             // Success!
+        } else {                    // Failed to Read or could not read entire file
+            result = 0xa;           // ERROR: Failed to Read File!
+            win32_FreeFileMemory(out);  // on failed read release memeory
         }
+    } else {
+        result = 9;             // ERROR: Could not allocate memory for file!
+    }
         CloseHandle(file);          // Close the File Handle
         return result;              // return error code
     }
 
-    /**************************************************************************
-     * Writes a value from memory out to disk (PROTOTYPING)
-     *************************************************************************/
-    bool win32_WriteToDisk(char* filename, uint32_t memorySize, void* memory) {
-        uint16_t result = 0;        // initialize error code to general failure
-        HANDLE file = CreateFileA(filename, GENERIC_WRITE, 0,   
-            0, CREATE_ALWAYS, 0, 0);    // Get a handle to the file
-        LARGE_INTEGER fileSize;     // 64-bit int to store filesize (NTFS/EXT4 safe)
-        uint32_t fileSize32;        // 32-bit int to pass to WriteFile
-        DWORD bytesWritten = 0;
-        GetFileSizeEx(file, &fileSize); // Get filesize
-        fileSize32 = win32_TruncateUInt64(fileSize.QuadPart);   // safe cast to 32-bit
+/**************************************************************************
+ * Writes a value from memory out to disk (PROTOTYPING)
+ *************************************************************************/
+bool win32_WriteToDisk(char* filename, uint32_t memorySize, void* memory) {
+    uint16_t result = 0;        // initialize error code to general failure
+    HANDLE file = CreateFileA(filename, GENERIC_WRITE, 0,   
+        0, CREATE_ALWAYS, 0, 0);    // Get a handle to the file
+    LARGE_INTEGER fileSize;     // 64-bit int to store filesize (NTFS/EXT4 safe)
+    uint32_t fileSize32;        // 32-bit int to pass to WriteFile
+    DWORD bytesWritten = 0;
+    GetFileSizeEx(file, &fileSize); // Get filesize
+    fileSize32 = win32_TruncateUInt64(fileSize.QuadPart);   // safe cast to 32-bit
     
-        if((WriteFile(file, memory, fileSize32, &bytesWritten, 0)) && (fileSize32 == bytesWritten)) {
-            result = 1;         // Success!
-        } else {
-            result = 0;         // ERROR: General Failure (for boolean logic)
-        }
-    
-        return result;
+    if((WriteFile(file, memory, fileSize32, &bytesWritten, 0)) && (fileSize32 == bytesWritten)) {
+        result = 1;         // Success!
+    } else {
+        result = 0;         // ERROR: General Failure (for boolean logic)
     }
+    return result;
+}
 
-    /**************************************************************************
-     * Free memory allocated to store file data. (PROTOTYPING)
-     *************************************************************************/
-    void win32_FreeFileMemory(void* memory) {
-        if(memory) {
-            VirtualFree(memory, 0, MEM_RELEASE);
-        }
-    }   
+/**************************************************************************
+ * Free memory allocated to store file data. (PROTOTYPING)
+ *************************************************************************/
+void win32_FreeFileMemory(void* memory) {
+    if(memory) {
+        VirtualFree(memory, 0, MEM_RELEASE);
+    }
+}   
 #endif      // end of Prototyping
 
 /******************************************************************************
@@ -449,7 +456,7 @@ int CALLBACK WinMain(
     HWND mainWindow;
     HDC deviceContext;
     char* dllName                   = "FluffyFortnight.dll";
-    game_GfxBuffer pushBuffer       = {};                         // create the push buffer
+    game_GfxBuffer gfxPushBuffer    = {};                         // create the push buffer
     win32_GameCode gameCode         = {};                         // create the external code library
     
     uint16_t errorCode;
@@ -475,9 +482,6 @@ int CALLBACK WinMain(
     void* memory                    = VirtualAlloc(baseAddress, (SIZE_T)((uint64_t)MEGABYTES(64) + (uint64_t)GIGABYTES(4)), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
     #endif
 
-
-    
-
     for(int i = 0; i < 4; i++) {
         // TODO: Create Threads
     }
@@ -490,11 +494,16 @@ int CALLBACK WinMain(
         DEFAULT_GFX_BUFFER_WIDTH,
         DEFAULT_GFX_BUFFER_HEIGHT
     );
+
+    // initialize a working sound buffer for the game code to manipulate
     game_SoundBuffer soundPushBuffer    = {};
-    int soundBufferSize = 48000 * sizeof(uint16_t) * 2;
-    soundPushBuffer.samples             = (uint16_t*)VirtualAlloc(0, soundBufferSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
     soundPushBuffer.isInitialized       = true;
-    //win32_InitXAudio2(&audioEngine);
+    soundPushBuffer.samplesPerSecond    = 48000;
+    soundPushBuffer.sampleCount         = 48000;
+    soundPushBuffer.bufferSize          = 48000 * sizeof(uint16_t) * 2;
+    soundPushBuffer.samples             = (uint16_t*)VirtualAlloc(0, soundPushBuffer.bufferSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    soundPushBuffer.isInitialized       = true;
+    win32_InitXAudio2(&audioEngine);
     if(errorCode != 1) {     
         running = false;
         // TODO: Error Logging
@@ -513,20 +522,20 @@ int CALLBACK WinMain(
         }
 
         // initialize a working buffer for the game code to manipulate
-        pushBuffer.memory = frameBuffer.memory;
-        pushBuffer.width = frameBuffer.info.bmiHeader.biWidth;
-        pushBuffer.height = frameBuffer.info.bmiHeader.biHeight;
-        pushBuffer.pitch = frameBuffer.pitch;
-        pushBuffer.channelCount = frameBuffer.channelCount;
+        gfxPushBuffer.memory = frameBuffer.memory;
+        gfxPushBuffer.width = frameBuffer.info.bmiHeader.biWidth;
+        gfxPushBuffer.height = frameBuffer.info.bmiHeader.biHeight;
+        gfxPushBuffer.pitch = frameBuffer.pitch;
+        gfxPushBuffer.channelCount = frameBuffer.channelCount;
 
-        // initialize a working sound buffer for the game code to manipulate
+
 
 		if (gameCode.isValid) {
-            //gameCode.gameRenderAudio(&soundPushBuffer);         // Call the game to fill an audio buffer
-			gameCode.gameRenderGfx(&pushBuffer);                // Call the game to fill a graphics buffer
+            gameCode.gameRenderAudio(&soundPushBuffer);         // Call the game to fill an audio buffer
+			gameCode.gameRenderGfx(&gfxPushBuffer);                // Call the game to fill a graphics buffer
 		}
-        //win32_ProcessGameSound(&soundPushBuffer, audioEngine.soundBuffer);      // push the game audio to the XAudio2 buffer
-        //audioEngine.srcVoice->Start(0);                         // Start playing the buffer
+        win32_ProcessGameSound(&soundPushBuffer, &audioEngine.soundBuffer);      // push the game audio to the XAudio2 buffer
+        // audioEngine.srcVoice->Start(0);                         // Start playing the buffer
         deviceContext = GetDC(mainWindow);                      // Get a device context to the window
         win32_CopyBufferToWindow(                               // FLIP
             deviceContext,
