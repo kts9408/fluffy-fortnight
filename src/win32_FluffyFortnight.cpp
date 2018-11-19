@@ -82,7 +82,11 @@ namespace {
     /**************************************************************************
      * Initialize a Screen Buffer
      *************************************************************************/
-    uint16_t win32_InitGfxBuffer(win32_GfxBuffer* buffer, int width, int height) {
+    uint16_t win32_InitGfxBuffer(
+        win32_GfxBuffer* buffer,
+        int width,
+        int height
+    ){
         uint16_t result = 0;                // default to general error
         if(buffer->memory) {
             VirtualFree(buffer->memory, 0, MEM_RELEASE);    // release existing buffer before re-allocating
@@ -120,7 +124,7 @@ namespace {
     uint16_t win32_InitWindow(
         HINSTANCE &hInstance,   // handle to current instance [input]
         HWND &window            // handle to main window [output]
-    ) {   
+    ){   
         uint16_t result = 0;    // default to general failure
 
         // initialize the window structure with appropriate class attributes
@@ -142,7 +146,8 @@ namespace {
                     NULL,                           // handle to parent (none because top level)
                     NULL,                           // handle to menu (none because top level)
                     hInstance,                      // handle to application instance
-                    NULL);                          // optional parameters (none)
+                    NULL                            // optional parameters (none)
+                );
 
             if (window) {  
                 // Success
@@ -157,7 +162,7 @@ namespace {
             result = 2;
         }
 
-        return(result);
+        return result;
     }
 
     /**************************************************************************
@@ -177,7 +182,10 @@ namespace {
     /**************************************************************************
      * Helper function to return the write timestamp on a given file.
      *************************************************************************/
-    inline uint16_t win32_GetLastWriteTime(char* filename, FILETIME* output) {
+    inline uint16_t win32_GetLastWriteTime(
+        char* filename,
+        FILETIME* output)
+    {
         uint16_t result = 0;
         WIN32_FILE_ATTRIBUTE_DATA data;
 
@@ -194,7 +202,10 @@ namespace {
     /**************************************************************************
      * Load game code from external library
      *************************************************************************/
-    uint16_t win32_LoadGameCode(char* dllName, win32_GameCode* output) {
+    uint16_t win32_LoadGameCode(
+        char* dllName,
+        win32_GameCode* output
+    ){
         // TODO: Get real path (ie. data not build)
         // TODO: swap to auto update instead of on demand
 
@@ -327,14 +338,15 @@ namespace {
         waveFormat->nChannels                   = 2;
         waveFormat->wBitsPerSample              = 16;
         waveFormat->nSamplesPerSec              = 48000;
-        waveFormat->nBlockAlign                 = ((WORD)waveFormat->nSamplesPerSec) * waveFormat->wBitsPerSample / 8;
+        waveFormat->nBlockAlign                 = 4;
+        // waveFormat->nBlockAlign                 = ((WORD)waveFormat->nSamplesPerSec) * waveFormat->wBitsPerSample / 8;
         waveFormat->nAvgBytesPerSec             = waveFormat->nSamplesPerSec * waveFormat->nBlockAlign;
         waveFormat->cbSize                      = 0;
 
         // Initalize the Sound Buffer Parameters (Default config)
         // TODO: Read these settings from a persistant config file.
         soundBuffer->Flags                           = 0;                
-        soundBuffer->AudioBytes                      = XAUDIO2_MAX_BUFFER_BYTES;
+        soundBuffer->AudioBytes                      = 384000;
         soundBuffer->pAudioData                      = 0;
         soundBuffer->PlayBegin                       = 0;
         soundBuffer->PlayLength                      = 0;
@@ -342,7 +354,7 @@ namespace {
         soundBuffer->LoopLength                      = 0;
         soundBuffer->LoopCount                       = XAUDIO2_LOOP_INFINITE;
         soundBuffer->pContext                        = 0;
-        //        CoInitialize(NULL, COINIT_MULTITHREADED);
+        // CoInitialize(NULL, COINIT_MULTITHREADED);
 
         if(xAudioLib) {
             xaudio_Create* XAudio2Create        = (xaudio_Create*)GetProcAddress(xAudioLib, "XAudio2Create");
@@ -363,14 +375,16 @@ namespace {
     /**************************************************************************
      * Process Game Sound with XAudio
      *************************************************************************/
-    uint16_t win32_ProcessGameSound(game_SoundBuffer* in, XAUDIO2_BUFFER* out) {
+    uint16_t win32_ProcessGameSound(
+        game_SoundBuffer* in,
+        XAUDIO2_BUFFER* out
+    ){
         uint16_t result = 0;                    // initialize to general failure
-        IXAudio2SourceVoice* srcVoice        = 0;
         if(in->isInitialized) {
             out->pAudioData = (uint8_t*)in->samples;       // cast/dereference the audio buffer data to BYTE (required by XAudio2)
-            audioEngine.xAudio->CreateSourceVoice(&srcVoice, &audioEngine.waveFormat);
-            srcVoice->SubmitSourceBuffer(out);
-            srcVoice->Start();
+            audioEngine.xAudio->CreateSourceVoice(&audioEngine.sourceVoice, (WAVEFORMATEX*)&audioEngine.waveFormat);
+            audioEngine.sourceVoice->SubmitSourceBuffer(out);
+            audioEngine.sourceVoice->Start();
             result = 1;                         // SUCCESS!
         } else {
             result = 0xc;                      // ERROR:  Audio buffer not initialized
@@ -388,7 +402,10 @@ namespace {
 /**************************************************************************
  * Reads an entire file from disk and stores the data in memory (PROTOTYPING)
  *************************************************************************/ 
-uint16_t win32_ReadFromDisk(char* filename, void* out) {
+uint16_t win32_ReadFromDisk(
+    char* filename,
+    void* out
+){
     uint16_t result = 0;            // initialize error code to general failure
     HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ,  // Get a Handle to the File, Shared for Reading
         0, OPEN_EXISTING, 0, 0);    // Throw error if it doesn't exist
@@ -416,7 +433,11 @@ uint16_t win32_ReadFromDisk(char* filename, void* out) {
 /**************************************************************************
  * Writes a value from memory out to disk (PROTOTYPING)
  *************************************************************************/
-bool win32_WriteToDisk(char* filename, uint32_t memorySize, void* memory) {
+bool win32_WriteToDisk(
+    char* filename,
+    uint32_t memorySize,
+    void* memory
+){
     uint16_t result = 0;        // initialize error code to general failure
     HANDLE file = CreateFileA(filename, GENERIC_WRITE, 0,   
         0, CREATE_ALWAYS, 0, 0);    // Get a handle to the file
@@ -479,7 +500,7 @@ int CALLBACK WinMain(
     memory.tempStorage              = (uint8_t*)memory.persistentStorage + memory.persistentStorageSize;    // set temporary partition
     memory.tempStorageHead          = (uint8_t*)memory.persistentStorage + memory.persistentStorageSize;    // set the start of temporary partition
     #else
-    void* memory                    = VirtualAlloc(baseAddress, (SIZE_T)((uint64_t)MEGABYTES(64) + (uint64_t)GIGABYTES(4)), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    void* memory                    = VirtualAlloc(baseAddress, ((uint64_t)MEGABYTES(64) + (uint64_t)GIGABYTES(4)), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
     #endif
 
     for(int i = 0; i < 4; i++) {

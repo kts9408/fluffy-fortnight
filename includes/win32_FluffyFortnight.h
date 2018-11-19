@@ -38,6 +38,7 @@ struct win32_SoundEngine {
     XAUDIO2_BUFFER                  soundBuffer;    // buffer used by audio engine
     IXAudio2*                       xAudio;         // Pointer to audio Engine
     IXAudio2MasteringVoice*         masterVoice;    // Pointer to master voice
+    IXAudio2SourceVoice*            sourceVoice;
 };
 
 // Struct encapsulating the game code handle
