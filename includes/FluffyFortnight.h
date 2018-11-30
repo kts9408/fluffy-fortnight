@@ -86,6 +86,60 @@ struct game_Thread {
     uint32_t*       threadId;
     void*           threadCallBack;
 };
+
+// struct encapsulating the state of a button
+struct game_ButtonState {
+    int             halfTransitionCount;
+    bool            endedDown;
+};
+
+struct game_ControllerInput {
+    // Analog components of a controller
+    bool            isAnalog;
+    // Left Analog Stick State
+    float           startLX;
+    float           startLY;
+    float           minLX;
+    float           minLY;
+    float           maxLX;
+    float           maxLY;
+    float           endLX;
+    float           endLY;
+    // Right Analog Stick State
+    float           startRX;
+    float           startRY;
+    float           minRX;
+    float           minRY;
+    float           maxRX;
+    float           maxRY;
+    float           endRX;
+    float           endRY;
+    // Analog triggers
+    float           leftTrigger;
+    float           rightTrigger;
+    union {     // digital components of a controller
+        game_ButtonState Buttons[10];
+        struct {    // face buttons
+            game_ButtonState    up;
+            game_ButtonState    down;
+            game_ButtonState    left;
+            game_ButtonState    right;
+            game_ButtonState    start;
+            game_ButtonState    select;
+            game_ButtonState    leftShoulder;
+            game_ButtonState    rightShoulder;
+            game_ButtonState    leftThumb;
+            game_ButtonState    rightThumb;
+        };
+        game_ButtonState DPad[4];
+        struct {
+            game_ButtonState    dUp;
+            game_ButtonState    dDown;
+            game_ButtonState    dLeft;
+            game_ButtonState    dRight;
+        };
+    };
+};
 /******************************************************************************
  * External Bindings
  *****************************************************************************/

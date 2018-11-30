@@ -15,3 +15,4 @@ ERROR CODE TABLE (Win32)
 0xa                 - Failed to Read from file
 0xb                 - Failed to Start Audio Engine
 0xc                 - Audio buffer not initialized
+0xd                 - Failed to Load XInput

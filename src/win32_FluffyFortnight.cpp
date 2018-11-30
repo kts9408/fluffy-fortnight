@@ -6,7 +6,8 @@
 namespace {
     win32_GfxBuffer frameBuffer;
     win32_SoundEngine audioEngine;
-    
+    xinput_set_state* _XInputSetState = XInputSetStateStub;
+    xinput_get_state* _XInputGetState = XInputGetStateStub;
     bool running = true;
     /**************************************************************************
     * Internal Methods 
@@ -29,6 +30,12 @@ namespace {
     uint16_t win32_ProcessGameSound(game_SoundBuffer* in, XAUDIO2_BUFFER* out);
 
     // End of Forward Declaration
+
+    /**************************************************************************
+    * Stubs to prevent crash from lack of XInput Supported Controller
+    **************************************************************************/
+    XINPUT_SET_STATE(XInputSetStateStub) { return ERROR_DEVICE_NOT_CONNECTED; }
+    XINPUT_GET_STATE(XInputGetStateStub) { return ERROR_DEVICE_NOT_CONNECTED; }
 
     /**************************************************************************
      * Callback function that processes messages sent to the main window
@@ -345,7 +352,7 @@ namespace {
 
         // Initalize the Sound Buffer Parameters (Default config)
         // TODO: Read these settings from a persistant config file.
-        soundBuffer->Flags                           = 0;                
+        soundBuffer->Flags          = 0;                
         soundBuffer->AudioBytes                      = 384000;
         soundBuffer->pAudioData                      = 0;
         soundBuffer->PlayBegin                       = 0;
@@ -361,14 +368,14 @@ namespace {
             XAudio2Create(&out->xAudio, 0, XAUDIO2_DEFAULT_PROCESSOR);
             if(out->xAudio) {
                 out->xAudio->CreateMasteringVoice(&out->masterVoice);
-                result                  = 1;        // Success!
+                result      = 1;        // Success!
             } else {
                 // ERROR: Failed to Start Audio Engine
-                result                  = 0xb;   
+                result      = 0xb;   
             }
         } else {
             // ERROR: Failed to Start Audio Engine
-            result                      = 0xb;   
+            result      = 0xb;   
         }
         return result;
     }
@@ -382,15 +389,40 @@ namespace {
         uint16_t result = 0;                    // initialize to general failure
         if(in->isInitialized) {
             out->pAudioData = (uint8_t*)in->samples;       // cast/dereference the audio buffer data to BYTE (required by XAudio2)
+            out->AudioBytes = in->bufferSize;
             audioEngine.xAudio->CreateSourceVoice(&audioEngine.sourceVoice, (WAVEFORMATEX*)&audioEngine.waveFormat);
             audioEngine.sourceVoice->SubmitSourceBuffer(out);
             audioEngine.sourceVoice->Start();
+            in->isInitialized   = false;
             result = 1;                         // SUCCESS!
         } else {
             result = 0xc;                      // ERROR:  Audio buffer not initialized
         }
         return result;
     }
+    /**************************************************************************
+     * 
+     *************************************************************************/ 
+    uint16_t win32_InitXInput(void) {
+        // TODO: Test on Win8
+        uint16_t result = 0;
+        HMODULE XInputLib   = LoadLibraryA("xinput1_4.dll");    // load XInput1.4
+        if(!XInputLib) {
+            XInputLib   = LoadLibraryA("xinput1_3.dll");    // fallback to 1.3
+        }
+
+        if(XInputLib) {
+            XInputGetState  = (xinput_get_state*)GetProcAddress(XInputLib, "XInputGetState");
+            XInputSetState  = (xinput_set_state*)GetProcAddress(XInputLib, "XInputSetState");
+            result  = 1;    // Success!
+        } else {
+            result  = 0xd;  // ERROR: Failed to Load XInput
+        }
+
+        return result;
+    }
+
+
 
 
 }       // End of Internal Methods
@@ -552,6 +584,14 @@ int CALLBACK WinMain(
 
 
 		if (gameCode.isValid) {
+            XINPUT_STATE controllerState;
+            for(int controllerIndex = 0; controllerIndex < XUSER_MAX_COUNT; controllerIndex++) {
+                if(XInputGetState(controllerIndex, &controllerState) == ERROR_SUCCESS) {
+                    XINPUT_GAMEPAD* pad = &controllerState.Gamepad;
+                } else {
+
+                }
+            }
             gameCode.gameRenderAudio(&soundPushBuffer);         // Call the game to fill an audio buffer
 			gameCode.gameRenderGfx(&gfxPushBuffer);                // Call the game to fill a graphics buffer
 		}
