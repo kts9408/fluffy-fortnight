@@ -18,7 +18,7 @@ typedef XAUDIO2_CREATE(xaudio_Create);
 #define XINPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration)
 typedef XINPUT_SET_STATE(xinput_set_state);     // function pointer support
 #define XInputSetState _XInputSetState      // redefine api function name to pointer
-#define XINPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration)
+#define XINPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
 typedef XINPUT_GET_STATE(xinput_get_state);
 #define XInputGetState _XInputGetState
 
@@ -27,7 +27,7 @@ typedef XINPUT_GET_STATE(xinput_get_state);
 /******************************************************************************
  * CONST
  *****************************************************************************/
-#define     DELAY_THREAD_START 0x00000004
+
 
 /******************************************************************************
  * STRUCTS

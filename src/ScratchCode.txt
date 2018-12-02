@@ -1,0 +1,16 @@
+// Scratch Code
+            for(int controllerIndex = 0; controllerIndex < MAX_CONTROLLER_COUNT; controllerIndex++) {
+                if(XInputGetState(controllerIndex, &controllerState) == ERROR_SUCCESS) {    // Controller is plugged in
+                    game_ControllerInput* pad;
+                    win32_CreateGameController(controllerState.Gamepad, pad);
+                    // TODO: Store Vibration returned from previous frame of the game and use those values
+                    XINPUT_VIBRATION out = {
+                        pad->LeftVibration,
+                        pad->RightVibration
+                    };
+                    XInputSetState(controllerIndex, &out);
+                    // END TODO
+                } else {    // Controller is NOT available
+ 
+                }
+            }

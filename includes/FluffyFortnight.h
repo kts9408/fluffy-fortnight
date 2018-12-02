@@ -6,7 +6,11 @@
  * 0    - Release build
  *****************************************************************************/
 #define PROTOTYPE 1
-
+#define MAX_INPUT_COUNT 4
+#define NEW_CONTROLLER_INPUT 0
+#define OLD_CONTROLLER_INPUT 1
+#define NEW_KEYBOARD_INPUT 2
+#define OLD_KEYBOARD_INPUT 3
 /******************************************************************************
  * 
  *****************************************************************************/
@@ -93,6 +97,12 @@ struct game_ButtonState {
     bool            endedDown;
 };
 
+// struct encapsulating all sources of input used by the game layer
+struct game_Input {
+    // TODO: Insert clock values
+    game_ControllerInput*    Controllers[MAX_INPUT_COUNT];
+};
+
 struct game_ControllerInput {
     // Analog components of a controller
     bool            isAnalog;
@@ -114,29 +124,27 @@ struct game_ControllerInput {
     float           maxRY;
     float           endRX;
     float           endRY;
-    // Analog triggers
-    float           leftTrigger;
-    float           rightTrigger;
+    // Controller Vibration
+    uint16_t        LeftVibration;      // Output
+    uint16_t        RightVibration;     // Output
     union {     // digital components of a controller
-        game_ButtonState Buttons[10];
+        bool Buttons[8];
         struct {    // face buttons
-            game_ButtonState    up;
-            game_ButtonState    down;
-            game_ButtonState    left;
-            game_ButtonState    right;
-            game_ButtonState    start;
-            game_ButtonState    select;
-            game_ButtonState    leftShoulder;
-            game_ButtonState    rightShoulder;
-            game_ButtonState    leftThumb;
-            game_ButtonState    rightThumb;
+            bool    Top;
+            bool    Bottom;
+            bool    Left;
+            bool    Right;
+            bool    Start;
+            bool    Select;
+            bool    LeftShoulder;
+            bool    RightShoulder;
         };
-        game_ButtonState DPad[4];
+        bool DPad[4];
         struct {
-            game_ButtonState    dUp;
-            game_ButtonState    dDown;
-            game_ButtonState    dLeft;
-            game_ButtonState    dRight;
+            bool    dUp;
+            bool    dDown;
+            bool    dLeft;
+            bool    dRight;
         };
     };
 };

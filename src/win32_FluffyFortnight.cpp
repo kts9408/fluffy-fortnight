@@ -281,7 +281,7 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/
-    void win32_ProcessPendingMessages(HWND window) {
+    void win32_ProcessPendingMessages(game_ControllerInput* keyboardController) {
         MSG msg;
         while(PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {      // Poll Windows Message Queue
             switch(msg.message) {
@@ -289,7 +289,7 @@ namespace {
 			    case WM_SYSKEYUP:		
 			    case WM_KEYDOWN:
 			    case WM_KEYUP: {                            // On Keyboard Event Message
-                    win32_ProcessKeyboardInput(&msg);
+                    win32_ProcessKeyboardInput(&msg, keyboardController);
                 } break;
                 default: {
                     TranslateMessage(&msg);                 // Propogate up to OS
@@ -304,12 +304,54 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/
-    void win32_ProcessKeyboardInput(MSG* msg) {
+    void win32_ProcessKeyboardInput(
+        MSG* msg,
+        game_ControllerInput* keyboard
+    ) {
         uint32_t vkCode = (uint32_t)msg->wParam;            // Unpack key
         bool wasDown = ((msg->lParam & (1 << 30)) != 0);    // Unpack state
         bool isDown = ((msg->lParam & (1 << 31)) != 0);
         bool altKeyWasDown = (msg->lParam & (1 << 29));     // Unpack modifiers
-
+        if(wasDown != isDown) {
+            switch(vkCode) {
+                case 'Q': {
+                    keyboard->LeftShoulder = true;
+                } break;
+                case 'W': {
+                    keyboard->RightShoulder = true;
+                } break;
+                case 'A': {
+                    keyboard->Left = true;
+                } break;
+                case 'S': {
+                    keyboard->Top = true;
+                } break;
+                case 'Z': {
+                    keyboard->Bottom = true;
+                } break;
+                case 'X': {
+                    keyboard->Right = true;
+                } break;
+                case VK_RETURN: {
+                    keyboard->Start = true;
+                } break;
+                case VK_LSHIFT: {
+                    keyboard->Select = true;
+                } break;
+                case VK_UP: {
+                    keyboard->dUp = true;
+                } break;
+                case VK_DOWN: {
+                    keyboard->dDown = true;
+                } break;
+                case VK_LEFT: {
+                    keyboard->dLeft = true;
+                } break;
+                case VK_RIGHT: {
+                    keyboard->dRight = true;
+                } break;
+            }
+        }
         running = !((vkCode == VK_F4) && (altKeyWasDown));  // Check for Alt + F4
     }
 
@@ -346,7 +388,7 @@ namespace {
         waveFormat->wBitsPerSample              = 16;
         waveFormat->nSamplesPerSec              = 48000;
         waveFormat->nBlockAlign                 = 4;
-        // waveFormat->nBlockAlign                 = ((WORD)waveFormat->nSamplesPerSec) * waveFormat->wBitsPerSample / 8;
+        // waveFormat->nBlockAlign                 = ((uint16_t)waveFormat->nSamplesPerSec) * waveFormat->wBitsPerSample / 8;
         waveFormat->nAvgBytesPerSec             = waveFormat->nSamplesPerSec * waveFormat->nBlockAlign;
         waveFormat->cbSize                      = 0;
 
@@ -421,8 +463,48 @@ namespace {
 
         return result;
     }
+    /**************************************************************************
+     * Takes the stick value reported by XINPUT and normalizes it to a float
+     * value between -1 and 1 after compensating for the deadzone.
+     *************************************************************************/ 
+    float win32_NormalizeStickValue(
+        int16_t in,       // SHORT value reported by XINPUT
+        int16_t deadzone  // deadzone value
+    ) {
+        float result = 0.0f;
+        if(in < -deadzone) {
+            result = (float)in/32768.0f;
+        } else if(in > deadzone) {
+            result = (float)in/32767.0f;
+        }
 
+        return result;
+    }
+    /**************************************************************************
+     * 
+     *************************************************************************/ 
+    uint16_t win32_CreateGameController(
+        XINPUT_GAMEPAD in,
+        game_ControllerInput* out
+    ) {
+        out->Top            = (in.wButtons & XINPUT_GAMEPAD_Y);
+        out->Bottom         = (in.wButtons & XINPUT_GAMEPAD_A);
+        out->Left           = (in.wButtons & XINPUT_GAMEPAD_X);
+        out->Right          = (in.wButtons & XINPUT_GAMEPAD_B);
+        out->LeftShoulder   = (in.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
+        out->RightShoulder  = (in.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
+        out->Start          = (in.wButtons & XINPUT_GAMEPAD_START);
+        out->Select         = (in.wButtons & XINPUT_GAMEPAD_BACK);
+        out->dUp            = (in.wButtons & XINPUT_GAMEPAD_DPAD_UP);
+        out->dDown          = (in.wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
+        out->dLeft          = (in.wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
+        out->dRight         = (in.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
 
+        out->minLX = out->maxLX = out->endLX = win32_NormalizeStickValue(in.sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+        out->minLY = out->maxLY = out->endLY = win32_NormalizeStickValue(in.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+        out->minRX = out->maxRX = out->endRX = win32_NormalizeStickValue(in.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+        out->minRY = out->maxRY = out->endRY = win32_NormalizeStickValue(in.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+    }
 
 
 }       // End of Internal Methods
@@ -431,9 +513,9 @@ namespace {
  * Public Methods
  *****************************************************************************/
 #if PROTOTYPE       // Prototyping code not for actual release
-/**************************************************************************
+/******************************************************************************
  * Reads an entire file from disk and stores the data in memory (PROTOTYPING)
- *************************************************************************/ 
+ *****************************************************************************/ 
 uint16_t win32_ReadFromDisk(
     char* filename,
     void* out
@@ -563,6 +645,8 @@ int CALLBACK WinMain(
     }
 
     gameCode.gameInit(&memory);
+    game_Input input;
+    XINPUT_STATE controllerState;
 
     while((running)) {
 
@@ -581,21 +665,28 @@ int CALLBACK WinMain(
         gfxPushBuffer.pitch = frameBuffer.pitch;
         gfxPushBuffer.channelCount = frameBuffer.channelCount;
 
+        // update input pointers to reflect frame change
+        input.Controllers[OLD_CONTROLLER_INPUT] = input.Controllers[NEW_CONTROLLER_INPUT];
+        // grab input from controller/keyboard
+        if(XInputGetState(0, &controllerState) == ERROR_SUCCESS) {
+            win32_CreateGameController(controllerState.Gamepad, input.Controllers[NEW_CONTROLLER_INPUT]);
+            XINPUT_VIBRATION out = {
+                input.Controllers[OLD_CONTROLLER_INPUT]->LeftVibration,
+                input.Controllers[OLD_CONTROLLER_INPUT]->RightVibration
+            };
+            XInputSetState(0, &out);
+        } else {    // Controller Unavailable
 
+        }
+        // end of input
 
 		if (gameCode.isValid) {
-            XINPUT_STATE controllerState;
-            for(int controllerIndex = 0; controllerIndex < XUSER_MAX_COUNT; controllerIndex++) {
-                if(XInputGetState(controllerIndex, &controllerState) == ERROR_SUCCESS) {
-                    XINPUT_GAMEPAD* pad = &controllerState.Gamepad;
-                } else {
-
-                }
-            }
-            gameCode.gameRenderAudio(&soundPushBuffer);         // Call the game to fill an audio buffer
-			gameCode.gameRenderGfx(&gfxPushBuffer);                // Call the game to fill a graphics buffer
+            gameCode.gameRenderAudio(&soundPushBuffer);     // Call the game to fill an audio buffer
+			gameCode.gameRenderGfx(&gfxPushBuffer);         // Call the game to fill a graphics buffer
 		}
-        win32_ProcessGameSound(&soundPushBuffer, &audioEngine.soundBuffer);      // push the game audio to the XAudio2 buffer
+        win32_ProcessGameSound(
+            &soundPushBuffer,
+            &audioEngine.soundBuffer);      // push the game audio to the XAudio2 buffer
         // audioEngine.srcVoice->Start(0);                         // Start playing the buffer
         deviceContext = GetDC(mainWindow);                      // Get a device context to the window
         win32_CopyBufferToWindow(                               // FLIP
@@ -604,7 +695,8 @@ int CALLBACK WinMain(
             &frameBuffer, 0, 0
         );
 
-        win32_ProcessPendingMessages(mainWindow);               // Check message queue
+        input.Controllers[OLD_KEYBOARD_INPUT]   = input.Controllers[NEW_KEYBOARD_INPUT];
+        win32_ProcessPendingMessages(input.Controllers[NEW_KEYBOARD_INPUT]);               // Check message queue
 
     }
 }
