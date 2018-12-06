@@ -11,6 +11,7 @@
 #define OLD_CONTROLLER_INPUT 1
 #define NEW_KEYBOARD_INPUT 2
 #define OLD_KEYBOARD_INPUT 3
+#define MAX_BUTTON_COUNT 12
 /******************************************************************************
  * 
  *****************************************************************************/
@@ -67,11 +68,18 @@ struct game_Memory {
 
 // struct representing a platform independent graphics buffer for the game to work with.
 struct game_GfxBuffer {
-    void*           memory;
-    int             width;
-    int             height;
-    int             channelCount;
-    int             pitch;
+    void*       memory;
+    int         width;
+    int         height;
+    int         channelCount;
+    int         pitch;
+};
+
+struct game_Color {
+    float       red;
+    float       green;
+    float       blue;
+    float       alpha;
 };
 
 // struct representing a platform independent sound buffer for the game to work with.
@@ -93,8 +101,8 @@ struct game_Thread {
 
 // struct encapsulating the state of a button
 struct game_ButtonState {
-    int             halfTransitionCount;
-    bool            endedDown;
+    uint16_t    stateChangeCount;       // used for sub-frame updates
+    bool        isDown;
 };
 
 // struct encapsulating all sources of input used by the game layer
@@ -107,44 +115,31 @@ struct game_ControllerInput {
     // Analog components of a controller
     bool            isAnalog;
     // Left Analog Stick State
-    float           startLX;
-    float           startLY;
-    float           minLX;
-    float           minLY;
-    float           maxLX;
-    float           maxLY;
-    float           endLX;
-    float           endLY;
+    float           avgLX;
+    float           avgLY;
     // Right Analog Stick State
-    float           startRX;
-    float           startRY;
-    float           minRX;
-    float           minRY;
-    float           maxRX;
-    float           maxRY;
-    float           endRX;
-    float           endRY;
+    float           avgRX;
+    float           avgRY;
     // Controller Vibration
     uint16_t        LeftVibration;      // Output
     uint16_t        RightVibration;     // Output
     union {     // digital components of a controller
-        bool Buttons[8];
-        struct {    // face buttons
-            bool    Top;
-            bool    Bottom;
-            bool    Left;
-            bool    Right;
-            bool    Start;
-            bool    Select;
-            bool    LeftShoulder;
-            bool    RightShoulder;
-        };
-        bool DPad[4];
-        struct {
-            bool    dUp;
-            bool    dDown;
-            bool    dLeft;
-            bool    dRight;
+        game_ButtonState*        Buttons[MAX_BUTTON_COUNT];
+        struct {    
+            // face buttons
+            game_ButtonState*    Top;
+            game_ButtonState*    Bottom;
+            game_ButtonState*    Left;
+            game_ButtonState*    Right;
+            game_ButtonState*    Start;
+            game_ButtonState*    Select;
+            game_ButtonState*    LeftShoulder;
+            game_ButtonState*    RightShoulder;
+            // D-Pad
+            game_ButtonState*    North;
+            game_ButtonState*    South;
+            game_ButtonState*    West;
+            game_ButtonState*    East;
         };
     };
 };
@@ -158,9 +153,10 @@ struct game_ControllerInput {
     void win32_FreeFileMemory(void* memory);
 #endif
 
-#define GAME_RENDER_GFX(name) void name(game_GfxBuffer *gfxBuffer)
+#define GAME_RENDER_GFX(name) void name(game_GfxBuffer* gfxBuffer)
 #define GAME_INIT(name) void name(game_Memory* memory)
-#define GAME_RENDER_AUDIO(name) void name(game_SoundBuffer *soundBuffer)
+#define GAME_RENDER_AUDIO(name) void name(game_SoundBuffer* soundBuffer)
+#define GAME_UPDATE(name) void name(game_ControllerInput* controllerInput)
 // TODO: Add additional bindings here
 
 /******************************************************************************
@@ -171,6 +167,8 @@ struct game_ControllerInput {
 typedef GAME_RENDER_GFX(game_RenderGfx);
 typedef GAME_INIT(game_Init);
 typedef GAME_RENDER_AUDIO(game_RenderAudio);
+typedef GAME_UPDATE(game_Update);
+
 /******************************************************************************
  * Public Functions
  *****************************************************************************/

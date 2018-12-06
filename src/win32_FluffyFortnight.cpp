@@ -23,7 +23,8 @@ namespace {
     inline uint16_t win32_GetLastWriteTime(char* filename, FILETIME* output);
     uint16_t win32_LoadGameCode(char* dllName, win32_GameCode* output);
     void win32_ProcessPendingMessages();
-    void win32_ProcessKeyboardInput(MSG* msg);
+    void win32_ProcessKeyboardMessages(MSG* msg);
+    void win32_ProcessKeyboardInput(bool isDown, game_ButtonState* out);
     void win32_FreeGameCode(win32_GameCode* input);
     void win32_CopyBufferToWindow(HDC window, int windowWidth, int windowHeight, win32_GfxBuffer* srcBuffer, int x, int y);      
     uint16_t win32_InitXAudio2(win32_SoundEngine* out);
@@ -227,6 +228,7 @@ namespace {
             output->gameRenderGfx = (game_RenderGfx*)GetProcAddress(output->dllGameCode, "renderGameGfx");
             output->gameInit = (game_Init*)GetProcAddress(output->dllGameCode, "initGame");
             output->gameRenderAudio = (game_RenderAudio*)GetProcAddress(output->dllGameCode, "renderGameAudio");
+            output->gameUpdate = (game_Update*)GetProcAddress(output->dllGameCode, "updateGame");
             win32_GetLastWriteTime(dllName, &(output->dllTimeStamp));
             output->isValid = (output->gameRenderGfx != nullptr);    // set initialized flag
         } else {
@@ -281,7 +283,10 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/
-    void win32_ProcessPendingMessages(game_ControllerInput* keyboardController) {
+    void win32_ProcessPendingMessages(
+        game_ControllerInput* old,
+        game_ControllerInput* keyboardController
+    ) {
         MSG msg;
         while(PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {      // Poll Windows Message Queue
             switch(msg.message) {
@@ -289,7 +294,11 @@ namespace {
 			    case WM_SYSKEYUP:		
 			    case WM_KEYDOWN:
 			    case WM_KEYUP: {                            // On Keyboard Event Message
-                    win32_ProcessKeyboardInput(&msg, keyboardController);
+                    win32_ProcessKeyboardMessages(
+                        &msg,
+                        old,
+                        keyboardController
+                    );
                 } break;
                 default: {
                     TranslateMessage(&msg);                 // Propogate up to OS
@@ -300,12 +309,23 @@ namespace {
         }
 
     }
-
     /**************************************************************************
      * 
      *************************************************************************/
     void win32_ProcessKeyboardInput(
+        bool isDown,
+        game_ButtonState* out
+    ) {
+        out->isDown = isDown;
+	    out->stateChangeCount++;
+    }
+
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    void win32_ProcessKeyboardMessages(
         MSG* msg,
+        game_ControllerInput* old,
         game_ControllerInput* keyboard
     ) {
         uint32_t vkCode = (uint32_t)msg->wParam;            // Unpack key
@@ -313,42 +333,43 @@ namespace {
         bool isDown = ((msg->lParam & (1 << 31)) != 0);
         bool altKeyWasDown = (msg->lParam & (1 << 29));     // Unpack modifiers
         if(wasDown != isDown) {
+            // TODO: Collapse this into a for...loop???
             switch(vkCode) {
                 case 'Q': {
-                    keyboard->LeftShoulder = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->LeftShoulder);
                 } break;
                 case 'W': {
-                    keyboard->RightShoulder = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->RightShoulder);
                 } break;
                 case 'A': {
-                    keyboard->Left = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->Left);
                 } break;
                 case 'S': {
-                    keyboard->Top = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->Top);
                 } break;
                 case 'Z': {
-                    keyboard->Bottom = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->Bottom);
                 } break;
                 case 'X': {
-                    keyboard->Right = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->Right);
                 } break;
                 case VK_RETURN: {
-                    keyboard->Start = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->Start);
                 } break;
                 case VK_LSHIFT: {
-                    keyboard->Select = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->Select);
                 } break;
                 case VK_UP: {
-                    keyboard->dUp = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->North);
                 } break;
                 case VK_DOWN: {
-                    keyboard->dDown = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->South);
                 } break;
                 case VK_LEFT: {
-                    keyboard->dLeft = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->West);
                 } break;
                 case VK_RIGHT: {
-                    keyboard->dRight = true;
+                    win32_ProcessKeyboardInput(isDown, keyboard->East);
                 } break;
             }
         }
@@ -395,14 +416,14 @@ namespace {
         // Initalize the Sound Buffer Parameters (Default config)
         // TODO: Read these settings from a persistant config file.
         soundBuffer->Flags          = 0;                
-        soundBuffer->AudioBytes                      = 384000;
-        soundBuffer->pAudioData                      = 0;
-        soundBuffer->PlayBegin                       = 0;
-        soundBuffer->PlayLength                      = 0;
-        soundBuffer->LoopBegin                       = 0;
-        soundBuffer->LoopLength                      = 0;
-        soundBuffer->LoopCount                       = XAUDIO2_LOOP_INFINITE;
-        soundBuffer->pContext                        = 0;
+        soundBuffer->AudioBytes     = 384000;
+        soundBuffer->pAudioData     = 0;
+        soundBuffer->PlayBegin      = 0;
+        soundBuffer->PlayLength     = 0;
+        soundBuffer->LoopBegin      = 0;
+        soundBuffer->LoopLength     = 0;
+        soundBuffer->LoopCount      = XAUDIO2_LOOP_INFINITE;
+        soundBuffer->pContext       = 0;
         // CoInitialize(NULL, COINIT_MULTITHREADED);
 
         if(xAudioLib) {
@@ -467,10 +488,11 @@ namespace {
      * Takes the stick value reported by XINPUT and normalizes it to a float
      * value between -1 and 1 after compensating for the deadzone.
      *************************************************************************/ 
-    float win32_NormalizeStickValue(
+    float win32_NormalizeAnalogStick(
         int16_t in,       // SHORT value reported by XINPUT
         int16_t deadzone  // deadzone value
     ) {
+
         float result = 0.0f;
         if(in < -deadzone) {
             result = (float)in/32768.0f;
@@ -480,30 +502,43 @@ namespace {
 
         return result;
     }
+
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    void win32_ProcessDigitalButton(
+        DWORD in,        //  Button State from XInput
+        DWORD mask,      //  Bit-Mask for XInput
+        game_ButtonState* oldButton,    //  Previous Button State
+        game_ButtonState* out       // Current Button State
+    ) {
+        out->isDown = ((in & mask) == mask);    // use bitmask to determine state of button
+        // TODO: change to += to track sub-frame transitions once this start polling more than once per frame.
+        out->stateChangeCount = (oldButton->isDown != out->isDown) ? 1 : 0;    // increment on state change
+    }
+
     /**************************************************************************
      * 
      *************************************************************************/ 
     uint16_t win32_CreateGameController(
         XINPUT_GAMEPAD in,
+        game_ControllerInput* old,
         game_ControllerInput* out
     ) {
-        out->Top            = (in.wButtons & XINPUT_GAMEPAD_Y);
-        out->Bottom         = (in.wButtons & XINPUT_GAMEPAD_A);
-        out->Left           = (in.wButtons & XINPUT_GAMEPAD_X);
-        out->Right          = (in.wButtons & XINPUT_GAMEPAD_B);
-        out->LeftShoulder   = (in.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
-        out->RightShoulder  = (in.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
-        out->Start          = (in.wButtons & XINPUT_GAMEPAD_START);
-        out->Select         = (in.wButtons & XINPUT_GAMEPAD_BACK);
-        out->dUp            = (in.wButtons & XINPUT_GAMEPAD_DPAD_UP);
-        out->dDown          = (in.wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
-        out->dLeft          = (in.wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
-        out->dRight         = (in.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
-
-        out->minLX = out->maxLX = out->endLX = win32_NormalizeStickValue(in.sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-        out->minLY = out->maxLY = out->endLY = win32_NormalizeStickValue(in.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-        out->minRX = out->maxRX = out->endRX = win32_NormalizeStickValue(in.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
-        out->minRY = out->maxRY = out->endRY = win32_NormalizeStickValue(in.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+        for(int buttonIndex = 0; buttonIndex < MAX_BUTTON_COUNT; buttonIndex++) {
+            win32_ProcessDigitalButton(
+                in.wButtons,
+                XINPUT_BITMASKS[buttonIndex],
+                old->Buttons[buttonIndex],
+                out->Buttons[buttonIndex]
+            );
+        }
+        // TODO: Possibly change this to calculate avg stick position based stick starting and ending position
+        out->avgLX  = win32_NormalizeAnalogStick(in.sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+        out->avgLY  = win32_NormalizeAnalogStick(in.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+        out->avgRX  = win32_NormalizeAnalogStick(in.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+        out->avgRY  = win32_NormalizeAnalogStick(in.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+        // TODO: Map Analog Stick input to D-Pad
     }
 
 
@@ -669,12 +704,16 @@ int CALLBACK WinMain(
         input.Controllers[OLD_CONTROLLER_INPUT] = input.Controllers[NEW_CONTROLLER_INPUT];
         // grab input from controller/keyboard
         if(XInputGetState(0, &controllerState) == ERROR_SUCCESS) {
-            win32_CreateGameController(controllerState.Gamepad, input.Controllers[NEW_CONTROLLER_INPUT]);
-            XINPUT_VIBRATION out = {
+            win32_CreateGameController(
+                controllerState.Gamepad,
+                input.Controllers[OLD_CONTROLLER_INPUT],
+                input.Controllers[NEW_CONTROLLER_INPUT]
+            );
+            XINPUT_VIBRATION controllerOutput = {
                 input.Controllers[OLD_CONTROLLER_INPUT]->LeftVibration,
                 input.Controllers[OLD_CONTROLLER_INPUT]->RightVibration
             };
-            XInputSetState(0, &out);
+            XInputSetState(0, &controllerOutput);
         } else {    // Controller Unavailable
 
         }
@@ -686,17 +725,21 @@ int CALLBACK WinMain(
 		}
         win32_ProcessGameSound(
             &soundPushBuffer,
-            &audioEngine.soundBuffer);      // push the game audio to the XAudio2 buffer
-        // audioEngine.srcVoice->Start(0);                         // Start playing the buffer
-        deviceContext = GetDC(mainWindow);                      // Get a device context to the window
-        win32_CopyBufferToWindow(                               // FLIP
+            &audioEngine.soundBuffer);          // push the game audio to the XAudio2 buffer
+        // audioEngine.srcVoice->Start(0);      // Start playing the buffer
+        deviceContext = GetDC(mainWindow);      // Get a device context to the window
+        win32_CopyBufferToWindow(               // FLIP
             deviceContext,
             DEFAULT_GFX_BUFFER_WIDTH, DEFAULT_GFX_BUFFER_HEIGHT,
             &frameBuffer, 0, 0
         );
 
+        // update keyboard input pointers to reflect frame change
         input.Controllers[OLD_KEYBOARD_INPUT]   = input.Controllers[NEW_KEYBOARD_INPUT];
-        win32_ProcessPendingMessages(input.Controllers[NEW_KEYBOARD_INPUT]);               // Check message queue
+        win32_ProcessPendingMessages(       // check message queue
+            input.Controllers[OLD_KEYBOARD_INPUT],
+            input.Controllers[NEW_KEYBOARD_INPUT]
+        );              
 
     }
 }

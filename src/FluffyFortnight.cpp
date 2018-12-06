@@ -41,6 +41,40 @@ namespace {
         }
 
     }
+
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    uint32_t roundFloatToUInt(float value) {
+        return (uint32_t)(value + 0.5f);
+    }
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    void renderRect(
+        int x0,
+        int y0,
+        int x1,
+        int y1,
+        game_Color* color,
+        game_GfxBuffer* buffer
+    ) {
+        uint32_t pixelColor = (uint32_t)(
+            (roundFloatToUInt(color->red * 255.0f) << 16) |
+            (roundFloatToUInt(color->green * 255.0f) << 8) |
+            (roundFloatToUInt(color->blue * 255.0f) << 0)
+        );
+        uint8_t* row = ((uint8_t*)buffer->memory) + (x0 * buffer->channelCount + y0 * buffer->pitch);
+
+        for(int j = y0; j < y1; j++) {
+            uint32_t* pixel     = (uint32_t*)row;
+            for(int i = x0; i < x1; i++) {
+                *pixel++ = pixelColor;
+            }
+            row += buffer->pitch;
+        }
+    }
+
     /**************************************************************************
      * Generate a test sound wave formatted for XAudio2 (Win32 Audio Engine)
      *************************************************************************/
@@ -92,6 +126,17 @@ namespace {
         gameMemory->isInitialized               = true;
         // TODO: implement memory management
     }
+    /**************************************************************************
+     * 
+     *************************************************************************/ 
+    void inputTest(game_ControllerInput* controller) {
+        if(controller->isAnalog) {
+            // TODO: Analog stick processing
+        } else {
+            // TODO: D-Pad Processing
+        }
+
+    }
 
 }
 /******************************************************************************
@@ -107,4 +152,9 @@ extern "C" GAME_INIT(initGame) {
 
 extern "C" GAME_RENDER_AUDIO(renderGameAudio) {
     XAudio2TestSound(soundBuffer);
+}
+
+extern "C" GAME_UPDATE(updateGame) {
+    
+    inputTest(controllerInput);
 }

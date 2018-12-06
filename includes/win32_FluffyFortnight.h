@@ -27,6 +27,20 @@ typedef XINPUT_GET_STATE(xinput_get_state);
 /******************************************************************************
  * CONST
  *****************************************************************************/
+uint32_t XINPUT_BITMASKS[] = {
+    XINPUT_GAMEPAD_Y,
+    XINPUT_GAMEPAD_A,
+    XINPUT_GAMEPAD_X,
+    XINPUT_GAMEPAD_B,
+    XINPUT_GAMEPAD_START,
+    XINPUT_GAMEPAD_BACK,
+    XINPUT_GAMEPAD_LEFT_SHOULDER,
+    XINPUT_GAMEPAD_RIGHT_SHOULDER,
+    XINPUT_GAMEPAD_DPAD_UP,
+    XINPUT_GAMEPAD_DPAD_DOWN,
+    XINPUT_GAMEPAD_DPAD_LEFT,
+    XINPUT_GAMEPAD_DPAD_RIGHT
+};
 
 
 /******************************************************************************
@@ -57,6 +71,7 @@ struct win32_GameCode {
     game_RenderGfx*     gameRenderGfx;     // render function
     game_RenderAudio*   gameRenderAudio;
     game_Init*          gameInit;       // initalize memory function
+    game_Update*        gameUpdate;
     bool                isValid;        // struct initialized
 };
 
