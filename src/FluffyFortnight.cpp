@@ -54,6 +54,12 @@ namespace {
      * 
      *************************************************************************/
     inline int32_t roundFloatToInt(float value) {
+        return (int32_t)(value + 0.5f);
+    }
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    inline uint32_t roundFloatToUInt(float value) {
         return (uint32_t)(value + 0.5f);
     }
     /**************************************************************************
@@ -67,9 +73,9 @@ namespace {
     ) {
         // cast color to int values
         uint32_t pixelColor = (uint32_t)(
-            (roundFloatToInt(color->red * 255.0f) << 16) |
-            (roundFloatToInt(color->green * 255.0f) << 8) |
-            (roundFloatToInt(color->blue * 255.0f) << 0)
+            (roundFloatToUInt(color->red * 255.0f) << 16) |
+            (roundFloatToUInt(color->green * 255.0f) << 8) |
+            (roundFloatToUInt(color->blue * 255.0f) << 0)
         );
         // cast coordinates to int values
         int32_t intX0  = roundFloatToInt(x0);
