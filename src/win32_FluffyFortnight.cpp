@@ -1,14 +1,5 @@
 #include "../includes/win32_FluffyFortnight.h"
-
-/******************************************************************************
- * Internal Methods 
- *****************************************************************************/
 namespace {
-    win32_GfxBuffer frameBuffer;
-    win32_SoundEngine audioEngine;
-    xinput_set_state* _XInputSetState = XInputSetStateStub;
-    xinput_get_state* _XInputGetState = XInputGetStateStub;
-    bool running = true;
     /**************************************************************************
     * Internal Methods 
     **************************************************************************/
@@ -22,21 +13,51 @@ namespace {
     inline win32_WindowDimension win32_GetWindowDimension(HWND window);
     inline uint16_t win32_GetLastWriteTime(char* filename, FILETIME* output);
     uint16_t win32_LoadGameCode(char* dllName, win32_GameCode* output);
-    void win32_ProcessPendingMessages();
-    void win32_ProcessKeyboardMessages(MSG* msg);
-    void win32_ProcessKeyboardInput(bool isDown, game_ButtonState* out);
     void win32_FreeGameCode(win32_GameCode* input);
-    void win32_CopyBufferToWindow(HDC window, int windowWidth, int windowHeight, win32_GfxBuffer* srcBuffer, int x, int y);      
+    void win32_ProcessPendingMessages(
+        game_ControllerInput* old,
+        game_ControllerInput* keyboardController
+    );
+    void win32_ProcessKeyboardMessages(
+        MSG* msg,
+        game_ControllerInput* old,
+        game_ControllerInput* keyboard
+    );
+    void win32_ProcessKeyboardInput(
+        bool isDown,
+        game_ButtonState* out
+    );
+    void win32_CopyBufferToWindow(
+        HDC window,                             // Device Context for the destination window
+        int windowWidth, int windowHeight,      // dimensions of the window
+        win32_GfxBuffer* srcBuffer,             // source buffer
+        int x, int y                            // coordinates to offset (TODO: Implement offsets)
+    );
+
     uint16_t win32_InitXAudio2(win32_SoundEngine* out);
-    uint16_t win32_ProcessGameSound(game_SoundBuffer* in, XAUDIO2_BUFFER* out);
+    uint16_t win32_ProcessGameSound(
+        game_SoundBuffer* in,
+        XAUDIO2_BUFFER* out
+    );
+
 
     // End of Forward Declaration
-
     /**************************************************************************
     * Stubs to prevent crash from lack of XInput Supported Controller
     **************************************************************************/
     XINPUT_SET_STATE(XInputSetStateStub) { return ERROR_DEVICE_NOT_CONNECTED; }
     XINPUT_GET_STATE(XInputGetStateStub) { return ERROR_DEVICE_NOT_CONNECTED; }
+
+    /**************************************************************************
+     * Internal Members
+     *************************************************************************/
+    win32_GfxBuffer frameBuffer;
+    win32_SoundEngine audioEngine;
+    bool running = true;
+    xinput_set_state* _XInputSetState = XInputSetStateStub;
+    xinput_get_state* _XInputGetState = XInputGetStateStub;
+
+
 
     /**************************************************************************
      * Callback function that processes messages sent to the main window
@@ -312,7 +333,7 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/
-    void win32_ProcessKeyboardInput(
+    inline void win32_ProcessKeyboardInput(
         bool isDown,
         game_ButtonState* out
     ) {
@@ -506,7 +527,7 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/
-    void win32_ProcessDigitalButton(
+    inline void win32_ProcessDigitalButton(
         DWORD in,        //  Button State from XInput
         DWORD mask,      //  Bit-Mask for XInput
         game_ButtonState* oldButton,    //  Previous Button State
@@ -520,7 +541,7 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/ 
-    uint16_t win32_CreateGameController(
+    void win32_CreateGameController(
         XINPUT_GAMEPAD in,
         game_ControllerInput* old,
         game_ControllerInput* out

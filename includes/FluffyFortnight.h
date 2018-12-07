@@ -105,12 +105,6 @@ struct game_ButtonState {
     bool        isDown;
 };
 
-// struct encapsulating all sources of input used by the game layer
-struct game_Input {
-    // TODO: Insert clock values
-    game_ControllerInput*    Controllers[MAX_INPUT_COUNT];
-};
-
 struct game_ControllerInput {
     // Analog components of a controller
     bool            isAnalog;
@@ -143,6 +137,13 @@ struct game_ControllerInput {
         };
     };
 };
+
+// struct encapsulating all sources of input used by the game layer
+struct game_Input {
+    // TODO: Insert clock values
+    game_ControllerInput*    Controllers[MAX_INPUT_COUNT];
+};
+
 /******************************************************************************
  * External Bindings
  *****************************************************************************/

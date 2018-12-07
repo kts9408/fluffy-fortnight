@@ -12,8 +12,16 @@ namespace {
     * Forward Declarations
     **************************************************************************/
     void renderTestGradient(game_GfxBuffer* gfxBuffer);
+    inline uint32_t roundFloatToUInt(float value);
+    void drawRect(
+        float x0, float y0,     // coordinates of the top left corner
+        float x1, float y1,     // coordinates of the botom right corner
+        game_Color* color,
+        game_GfxBuffer* buffer
+    );
     void init(game_Memory* memory);
     void XAudio2TestSound(game_SoundBuffer* soundBuffer);
+    void inputTest(game_ControllerInput* controller);
    
 
 
@@ -45,30 +53,45 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/
-    uint32_t roundFloatToUInt(float value) {
+    inline int32_t roundFloatToInt(float value) {
         return (uint32_t)(value + 0.5f);
     }
     /**************************************************************************
      * 
      *************************************************************************/
-    void renderRect(
-        int x0,
-        int y0,
-        int x1,
-        int y1,
+    void drawRect(
+        float x0, float y0,     // coordinates of the top left corner
+        float x1, float y1,     // coordinates of the botom right corner
         game_Color* color,
         game_GfxBuffer* buffer
     ) {
+        // cast color to int values
         uint32_t pixelColor = (uint32_t)(
-            (roundFloatToUInt(color->red * 255.0f) << 16) |
-            (roundFloatToUInt(color->green * 255.0f) << 8) |
-            (roundFloatToUInt(color->blue * 255.0f) << 0)
+            (roundFloatToInt(color->red * 255.0f) << 16) |
+            (roundFloatToInt(color->green * 255.0f) << 8) |
+            (roundFloatToInt(color->blue * 255.0f) << 0)
         );
-        uint8_t* row = ((uint8_t*)buffer->memory) + (x0 * buffer->channelCount + y0 * buffer->pitch);
+        // cast coordinates to int values
+        int32_t intX0  = roundFloatToInt(x0);
+        int32_t intX1  = roundFloatToInt(x1);
+        int32_t intY0  = roundFloatToInt(y0);
+        int32_t intY1  = roundFloatToInt(y1);
+        // force the edges of the screen
+        intX0 = (intX0 < 0) ? 0 : intX0;
+        intX1 = (intX1 > buffer->width) ? buffer->width : intX1;
+        intY0 = (intY0 < 0) ? 0 : intY0;
+        intY1 = (intY1 > buffer->height) ? buffer->height : intY1;
 
-        for(int j = y0; j < y1; j++) {
+
+        uint8_t* row    = (
+            ((uint8_t*)buffer->memory) +
+            (intX0 * buffer->channelCount +
+            intY0 * buffer->pitch)
+        );
+
+        for(int j = intY0; j < intY1; j++) {
             uint32_t* pixel     = (uint32_t*)row;
-            for(int i = x0; i < x1; i++) {
+            for(int i = intX0; i < intX1; i++) {
                 *pixel++ = pixelColor;
             }
             row += buffer->pitch;
@@ -143,7 +166,19 @@ namespace {
  * Public Methods
  *****************************************************************************/
 extern "C" GAME_RENDER_GFX(renderGameGfx) {
-    renderTestGradient(gfxBuffer);                          // renders a test gradient
+    renderTestGradient(gfxBuffer);
+    game_Color color    = {
+        1.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+    };
+    drawRect(
+        80.0f, 60.0f,
+        200.0f, 100.0f,
+        &color,
+        gfxBuffer
+    );                       
 }
 
 extern "C" GAME_INIT(initGame) {

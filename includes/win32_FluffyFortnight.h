@@ -81,6 +81,11 @@ struct win32_WindowDimension {
     int             height;
 };
 
+struct win32_XInputCode {
+    xinput_set_state*       _XInputSetState;
+    xinput_get_state*       _XInputGetState;
+};
+
 
 /******************************************************************************
  * External Bindings - For Prototyping Purposes
