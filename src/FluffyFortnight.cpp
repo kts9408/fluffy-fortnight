@@ -68,13 +68,15 @@ namespace {
      *************************************************************************/
     void drawTileMap(
         uint8_t map[][16],
-        uint16_t sizeI,
-        uint16_t sizeJ,
         game_GfxBuffer* out 
     ) {
         game_Color color;
-        for(uint16_t j = 0; j < sizeJ; j++) {
-            for(uint16_t i = 0; i < sizeI; i++) {
+        int32_t sizeI = 16;
+        int32_t sizeJ = 9;
+        int32_t tileWidth = 120;
+        int32_t tileHeight = 120;
+        for(int32_t j = 0; j < sizeJ; j++) {
+            for(int32_t i = 0; i < sizeI; i++) {
                 switch(map[j][i]) {
                 case 0: {
                     color = { 0.5f, 0.5f, 0.5f, 0.5f };
@@ -84,6 +86,15 @@ namespace {
                 } break;
                 
                 }
+                float x0 = (float)(i * tileWidth);
+                float y0 = (float)(j * tileHeight);
+                float x1 = (float)(i * tileWidth) + tileWidth + 1;
+                float y1 = (float)(j * tileWidth) + tileWidth + 1;
+                drawRect(
+                    x0, y0,
+                    x1, y1,
+                    &color, out
+                );
             }
         }
     }
@@ -209,12 +220,7 @@ extern "C" GAME_RENDER_GFX(renderGameGfx) {
         1.0f,
         1.0f,
     };
-    drawRect(
-        80.0f, 60.0f,
-        200.0f, 100.0f,
-        &color,
-        gfxBuffer
-    );                       
+    drawTileMap(LEVEL1, gfxBuffer);
 }
 
 extern "C" GAME_INIT(initGame) {
