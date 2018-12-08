@@ -27,7 +27,7 @@ typedef XINPUT_GET_STATE(xinput_get_state);
 /******************************************************************************
  * CONST
  *****************************************************************************/
-uint32_t XINPUT_BITMASKS[] = {
+const uint32_t XINPUT_BITMASKS[] = {
     XINPUT_GAMEPAD_Y,
     XINPUT_GAMEPAD_A,
     XINPUT_GAMEPAD_X,

@@ -13,6 +13,7 @@ namespace {
     **************************************************************************/
     void renderTestGradient(game_GfxBuffer* gfxBuffer);
     inline uint32_t roundFloatToUInt(float value);
+    inline int32_t roundFloatToInt(float value);
     void drawRect(
         float x0, float y0,     // coordinates of the top left corner
         float x1, float y1,     // coordinates of the botom right corner
@@ -65,6 +66,31 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/
+    void drawTileMap(
+        uint8_t map[][16],
+        uint16_t sizeI,
+        uint16_t sizeJ,
+        game_GfxBuffer* out 
+    ) {
+        game_Color color;
+        for(uint16_t j = 0; j < sizeJ; j++) {
+            for(uint16_t i = 0; i < sizeI; i++) {
+                switch(map[j][i]) {
+                case 0: {
+                    color = { 0.5f, 0.5f, 0.5f, 0.5f };
+                } break;
+                case 1: {
+                    color = { 1.0f, 1.0f, 1.0f, 1.0f };
+                } break;
+                
+                }
+            }
+        }
+    }
+
+    /**************************************************************************
+     * 
+     *************************************************************************/
     void drawRect(
         float x0, float y0,     // coordinates of the top left corner
         float x1, float y1,     // coordinates of the botom right corner
@@ -88,12 +114,16 @@ namespace {
         intY0 = (intY0 < 0) ? 0 : intY0;
         intY1 = (intY1 > buffer->height) ? buffer->height : intY1;
 
-
-        uint8_t* row    = (
+        uint8_t* row = (uint8_t*)buffer->memory;
+        row += intY0 * buffer->pitch;
+        row += intX0 * buffer->channelCount;
+        /**
+         * uint8_t* row    = (
             ((uint8_t*)buffer->memory) +
             (intX0 * buffer->channelCount +
             intY0 * buffer->pitch)
         );
+        **/
 
         for(int j = intY0; j < intY1; j++) {
             uint32_t* pixel     = (uint32_t*)row;
@@ -108,11 +138,11 @@ namespace {
      * Generate a test sound wave formatted for XAudio2 (Win32 Audio Engine)
      *************************************************************************/
     void XAudio2TestSound(game_SoundBuffer* soundBuffer) {   
-        uint16_t toneVolume             = 3000;
-        int toneHz                      = 256;
-        int wavePeriod                  = (soundBuffer->samplesPerSecond) / toneHz;
-        uint16_t* out                   = (uint16_t*)(soundBuffer->samples);            // XAudio2 Test Sound
-        float t                         = 0.0f;
+        uint16_t toneVolume         = 3000;
+        int toneHz                  = 256;
+        int wavePeriod              = (soundBuffer->samplesPerSecond) / toneHz;
+        uint16_t* out               = (uint16_t*)(soundBuffer->samples);            // XAudio2 Test Sound
+        float t                     = 0.0f;
 
         // Fill the sound buffer with a sine wave.
         for(int i = 0; i < soundBuffer->sampleCount; i++) {
