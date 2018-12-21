@@ -338,7 +338,7 @@ namespace {
         game_ButtonState* out
     ) {
         out->isDown = isDown;
-	    out->stateChangeCount++;
+	    //(out->stateChangeCount)++;
     }
 
     /**************************************************************************

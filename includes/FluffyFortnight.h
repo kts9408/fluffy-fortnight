@@ -58,7 +58,10 @@ uint8_t LEVEL1[9][16] = {
 
 // struct containing the state of the game persistant from frame to frame
 struct game_State {
-    float*          t;                                  // persistent time           
+    float*          t;          // persistent time
+    float*          playerX;    
+    float*          playerY;
+    uint16_t*       inputContext;
 };
 
 // struct containing the different memory partitions
@@ -91,6 +94,15 @@ struct game_Color {
     float       blue;
     float       alpha;
 };
+
+struct game_Tile {
+    game_Color* color;
+    uint8_t     index;
+    float       width;
+    float       height;
+    uint8_t     isPassable;
+};
+
 
 // struct representing a platform independent sound buffer for the game to work with.
 // TODO: adding information for mixing (i.e. Volume)

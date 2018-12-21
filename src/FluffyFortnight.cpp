@@ -20,9 +20,19 @@ namespace {
         game_Color* color,
         game_GfxBuffer* buffer
     );
+    void drawTileMap(
+        uint8_t map[][16],      // 2-D array of integers representing the pallettized map
+        game_GfxBuffer* out     // the graphics buffer to write to.
+    );
+    void drawPlayer(
+        float x,
+        float y,
+        game_GfxBuffer* out
+    );
     void init(game_Memory* memory);
     void XAudio2TestSound(game_SoundBuffer* soundBuffer);
     void inputTest(game_ControllerInput* controller);
+    void parseInput(game_ControllerInput* controller);
    
 
 
@@ -63,6 +73,28 @@ namespace {
     inline uint32_t roundFloatToUInt(float value) {
         return (uint32_t)(value + 0.5f);
     }
+
+    /**************************************************************************
+     * 
+     *************************************************************************/ 
+    void drawPlayer(
+        float x,
+        float y,
+        game_GfxBuffer* out
+    ) {
+        game_Color color = { 0.0f, 0.25f, 1.0f, 1.0f };
+        
+        float playerWidth     = 30.0f;
+        float playerHeight    = 60.0f;
+        drawRect(
+            x, y,
+            (x + playerWidth),
+            (y + playerHeight),
+            &color, out
+        );
+
+    }
+
     /**************************************************************************
      * 
      *************************************************************************/
@@ -187,9 +219,28 @@ namespace {
         #endif
 
 
-        gameState.t                             = (float*)(gameMemory->persistentStorage);
-        //gameMemory->persistentStorage            = (float*)(gameMemory->persistentStorage);
+        gameState.t = (float*)(gameMemory->persistentStorage);
+        *(gameState.t) = 0.0f;
         ++*(float*)(gameMemory->persistentStorage);
+        gameMemory->persistentStorageSize -= sizeof(float*);
+
+        gameState.playerX = (float*)(gameMemory->persistentStorage);
+        *(gameState.playerX) = 0.0f;
+        ++*(float*)(gameMemory->persistentStorage);
+        gameMemory->persistentStorageSize -= sizeof(float*);
+
+        gameState.playerY = (float*)(gameMemory->persistentStorage);
+        *(gameState.playerY) = 0.0f;
+        ++*(float*)(gameMemory->persistentStorage);
+        gameMemory->persistentStorageSize -= sizeof(float*);
+
+        gameState.inputContext = (uint16_t*)(gameMemory->persistentStorage);
+        *(gameState.inputContext) = 0;
+        ++*(uint16_t*)(gameMemory->persistentStorage);
+        gameMemory->persistentStorageSize -= sizeof(uint16_t*);
+
+        //gameMemory->persistentStorage            = (float*)(gameMemory->persistentStorage);
+        
 
 
         
@@ -207,6 +258,20 @@ namespace {
         }
 
     }
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    void parseInput(game_ControllerInput* controller) {
+        if(controller->isAnalog) {
+            // TODO: Analog stick processing
+        } else {
+            // TODO: Digital Input Processing
+            for(int i = 0; i < MAX_BUTTON_COUNT; i++) {
+
+            }
+        }
+        
+    }
 
 }
 /******************************************************************************
@@ -214,24 +279,32 @@ namespace {
  *****************************************************************************/
 extern "C" GAME_RENDER_GFX(renderGameGfx) {
     renderTestGradient(gfxBuffer);
-    game_Color color    = {
-        1.0f,
-        1.0f,
-        1.0f,
-        1.0f,
-    };
     drawTileMap(LEVEL1, gfxBuffer);
+    drawPlayer(
+        *(gameState.playerX),
+        *(gameState.playerY),
+        gfxBuffer
+    );
 }
 
+/******************************************************************************
+ * 
+ *****************************************************************************/ 
 extern "C" GAME_INIT(initGame) {
     init(memory);
 }
 
+/******************************************************************************
+ * 
+ *****************************************************************************/
 extern "C" GAME_RENDER_AUDIO(renderGameAudio) {
     XAudio2TestSound(soundBuffer);
 }
 
+/******************************************************************************
+ * 
+ *****************************************************************************/
 extern "C" GAME_UPDATE(updateGame) {
-    
+    parseInput(controllerInput);
     inputTest(controllerInput);
 }
