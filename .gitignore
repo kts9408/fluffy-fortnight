@@ -5,3 +5,16 @@
 *.dll
 *.pdb
 *.ilk
+build/.vs/win32_FluffyFortnight/v15/ipch/AutoPCH/9e786996db1b0de5/WIN32_FLUFFYFORTNIGHT.ipch
+build/FluffyFortnight.map
+build/FluffyFortnight.obj
+build/FluffyFortnight.temp.dll
+build/New Text Document.txt
+build/vc140.pdb
+build/win32_FluffyFortnight.exe
+build/win32_FluffyFortnight.ilk
+build/win32_FluffyFortnight.map
+build/win32_FluffyFortnight.obj
+build/win32_FluffyFortnight.pdb
+build/.vs/win32_FluffyFortnight/v15/Browse.VC.db
+build/.vs/win32_FluffyFortnight/v15/Browse.VC.opendb
