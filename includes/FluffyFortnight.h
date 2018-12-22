@@ -79,7 +79,8 @@ struct game_Memory {
 };
 
 
-// struct representing a platform independent graphics buffer for the game to work with.
+// struct representing a platform independent graphics buffer
+// for the game to work with.
 struct game_GfxBuffer {
     void*       memory;
     int         width;
@@ -95,6 +96,9 @@ struct game_Color {
     float       alpha;
 };
 
+// struct representing a tile on a tilemap
+// TODO: Change to include Sub-tiles (NES era tiles)
+// TODO: Replace color rectangles with bitmaps
 struct game_Tile {
     game_Color* color;
     uint8_t     index;
@@ -103,6 +107,11 @@ struct game_Tile {
     uint8_t     isPassable;
 };
 
+// struct representing a map
+// TODO: Store in Compressed Sparse Row or Compressed Sparse Column
+struct game_TileMap {
+
+};
 
 // struct representing a platform independent sound buffer for the game to work with.
 // TODO: adding information for mixing (i.e. Volume)
@@ -139,7 +148,8 @@ struct game_ControllerInput {
     // Controller Vibration
     uint16_t        LeftVibration;      // Output
     uint16_t        RightVibration;     // Output
-    union {     // digital components of a controller
+    // digital components of a controller
+    union {     
         game_ButtonState*        Buttons[MAX_BUTTON_COUNT];
         struct {    
             // face buttons

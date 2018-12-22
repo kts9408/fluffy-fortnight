@@ -338,7 +338,11 @@ namespace {
         game_ButtonState* out
     ) {
         out->isDown = isDown;
-	    //(out->stateChangeCount)++;
+	    out->stateChangeCount++;
+        
+        char buffer[256];
+        wsprintfA(buffer, "State Change Count: %d\n", out->stateChangeCount);
+        OutputDebugStringA(buffer);
     }
 
     /**************************************************************************
