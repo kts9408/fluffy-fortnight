@@ -1,10 +1,10 @@
-*.exp
-*.lib
-*.map
-*.obj
-*.dll
-*.pdb
-*.ilk
+build/*.exp
+build/*.lib
+build/*.map
+build/*.obj
+build/*.dll
+build/*.pdb
+build/*.ilk
 build/.vs/win32_FluffyFortnight/v15/ipch/AutoPCH/9e786996db1b0de5/WIN32_FLUFFYFORTNIGHT.ipch
 build/FluffyFortnight.map
 build/FluffyFortnight.obj
@@ -21,3 +21,4 @@ build/.vs/win32_FluffyFortnight/v15/Browse.VC.opendb
 build/.vs/win32_FluffyFortnight/v15/Browse.VC.db
 build/.vs/win32_FluffyFortnight/v15/Browse.VC.db
 build/.vs/*
+build/FluffyFortnight.dll
