@@ -203,11 +203,7 @@ namespace {
      *************************************************************************/
     void init(game_Memory* memory) {
 
-        #if PROTOTYPE
-        // PROTOTYPING - cold cast to memory
-        gameMemory = memory;
-        
-        #else
+
         // TODO: Proper Stack Allocator
         gameMemory                              = {};
         gameMemory->persistentStorageSize       = MEGABYTES(64);
@@ -216,7 +212,7 @@ namespace {
         gameMemory->persistentStorageHead       = (uint8_t*)memory;
         gameMemory->tempStorageHead             = (uint8_t*)memory + (gameMemory->persistentStorageSize);
         gameMemory->tempStorage                 = (uint8_t*)memory + (gameMemory->persistentStorageSize);   // point set pointer to the beginning of temp space
-        #endif
+    
 
 
         gameState.t = (float*)(gameMemory->persistentStorage);
