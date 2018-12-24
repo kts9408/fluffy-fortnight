@@ -2,7 +2,7 @@
 
 namespace {
     
-    game_Memory*        gameMemory;
+    game_Memory         gameMemory = { };
     game_State          gameState;
     /**************************************************************************
     * Internal Methods 
@@ -160,13 +160,6 @@ namespace {
         uint8_t* row = (uint8_t*)buffer->memory;
         row += intY0 * buffer->pitch;
         row += intX0 * buffer->channelCount;
-        /**
-         * uint8_t* row    = (
-            ((uint8_t*)buffer->memory) +
-            (intX0 * buffer->channelCount +
-            intY0 * buffer->pitch)
-        );
-        **/
 
         for(int j = intY0; j < intY1; j++) {
             uint32_t* pixel     = (uint32_t*)row;
@@ -201,46 +194,44 @@ namespace {
     /**************************************************************************
      * Initialize the Game Memory
      *************************************************************************/
-    void init(game_Memory* memory) {
-
+    void init(void* memory) {
 
         // TODO: Proper Stack Allocator
-        gameMemory                              = {};
-        gameMemory->persistentStorageSize       = MEGABYTES(64);
-        gameMemory->tempStorageSize             = GIGABYTES(4);
-        gameMemory->persistentStorage           = (uint8_t*)memory;
-        gameMemory->persistentStorageHead       = (uint8_t*)memory;
-        gameMemory->tempStorageHead             = (uint8_t*)memory + (gameMemory->persistentStorageSize);
-        gameMemory->tempStorage                 = (uint8_t*)memory + (gameMemory->persistentStorageSize);   // point set pointer to the beginning of temp space
+        gameMemory.persistentStorageSize       = MEGABYTES(64);
+        gameMemory.tempStorageSize             = GIGABYTES(4);
+        gameMemory.persistentStorageHead       = (uint8_t*)memory;
+        gameMemory.persistentStorage           = (uint8_t*)gameMemory.persistentStorageHead;
+        gameMemory.tempStorageHead             = (uint8_t*)gameMemory.persistentStorageHead + gameMemory.persistentStorageSize;
+        gameMemory.tempStorage                 = (uint8_t*)gameMemory.tempStorageHead;   // point set pointer to the beginning of temp space
     
 
 
-        gameState.t = (float*)(gameMemory->persistentStorage);
+        gameState.t = (float*)(gameMemory.persistentStorage);
         *(gameState.t) = 0.0f;
-        ++*(float*)(gameMemory->persistentStorage);
-        gameMemory->persistentStorageSize -= sizeof(float*);
+        gameMemory.persistentStorage = (float*)gameMemory.persistentStorage + 1;
+        gameMemory.persistentStorageSize -= sizeof(float*);
 
-        gameState.playerX = (float*)(gameMemory->persistentStorage);
+        gameState.playerX = (float*)(gameMemory.persistentStorage);
         *(gameState.playerX) = 0.0f;
-        ++*(float*)(gameMemory->persistentStorage);
-        gameMemory->persistentStorageSize -= sizeof(float*);
+        gameMemory.persistentStorage = (float*)gameMemory.persistentStorage + 1;
+        gameMemory.persistentStorageSize -= sizeof(float*);
 
-        gameState.playerY = (float*)(gameMemory->persistentStorage);
+        gameState.playerY = (float*)(gameMemory.persistentStorage);
         *(gameState.playerY) = 0.0f;
-        ++*(float*)(gameMemory->persistentStorage);
-        gameMemory->persistentStorageSize -= sizeof(float*);
+        gameMemory.persistentStorage = (float*)gameMemory.persistentStorage + 1;
+        gameMemory.persistentStorageSize -= sizeof(float*);
 
-        gameState.inputContext = (uint16_t*)(gameMemory->persistentStorage);
+        gameState.inputContext = (uint16_t*)(gameMemory.persistentStorage);
         *(gameState.inputContext) = 0;
-        ++*(uint16_t*)(gameMemory->persistentStorage);
-        gameMemory->persistentStorageSize -= sizeof(uint16_t*);
+        gameMemory.persistentStorage = (uint16_t*)gameMemory.persistentStorage + 1;
+        gameMemory.persistentStorageSize -= sizeof(uint16_t*);
 
-        //gameMemory->persistentStorage            = (float*)(gameMemory->persistentStorage);
+        
         
 
 
         
-        gameMemory->isInitialized               = true;
+        gameMemory.isInitialized               = true;
         // TODO: implement memory management
     }
     /**************************************************************************
@@ -262,8 +253,16 @@ namespace {
             // TODO: Analog stick processing
         } else {
             // TODO: Digital Input Processing
-            for(int i = 0; i < MAX_BUTTON_COUNT; i++) {
+            if(controller->East.isDown) {
+                *gameState.playerX += 5.0f;
+            } else if (controller->West.isDown ) {
+                *gameState.playerX -= 5.0f;
+            }
 
+            if(controller->North.isDown) {
+                *gameState.playerY -= 5.0f;
+            } else if(controller->South.isDown){
+                *gameState.playerY += 5.0f;
             }
         }
         

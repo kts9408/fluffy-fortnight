@@ -150,22 +150,22 @@ struct game_ControllerInput {
     uint16_t        RightVibration;     // Output
     // digital components of a controller
     union {     
-        game_ButtonState*        Buttons[MAX_BUTTON_COUNT];
+        game_ButtonState        Buttons[MAX_BUTTON_COUNT];
         struct {    
             // face buttons
-            game_ButtonState*    Top;
-            game_ButtonState*    Bottom;
-            game_ButtonState*    Left;
-            game_ButtonState*    Right;
-            game_ButtonState*    Start;
-            game_ButtonState*    Select;
-            game_ButtonState*    LeftShoulder;
-            game_ButtonState*    RightShoulder;
+            game_ButtonState    Top;
+            game_ButtonState    Bottom;
+            game_ButtonState    Left;
+            game_ButtonState    Right;
+            game_ButtonState    Start;
+            game_ButtonState    Select;
+            game_ButtonState    LeftShoulder;
+            game_ButtonState    RightShoulder;
             // D-Pad
-            game_ButtonState*    North;
-            game_ButtonState*    South;
-            game_ButtonState*    West;
-            game_ButtonState*    East;
+            game_ButtonState    North;
+            game_ButtonState    South;
+            game_ButtonState    West;
+            game_ButtonState    East;
         };
     };
 };
@@ -173,7 +173,7 @@ struct game_ControllerInput {
 // struct encapsulating all sources of input used by the game layer
 struct game_Input {
     // TODO: Insert clock values
-    game_ControllerInput*    Controllers[MAX_INPUT_COUNT];
+    game_ControllerInput     Controllers[MAX_INPUT_COUNT];
 };
 
 /******************************************************************************
@@ -187,7 +187,7 @@ struct game_Input {
 #endif
 
 #define GAME_RENDER_GFX(name) void name(game_GfxBuffer* gfxBuffer)
-#define GAME_INIT(name) void name(game_Memory* memory)
+#define GAME_INIT(name) void name(void* memory)
 #define GAME_RENDER_AUDIO(name) void name(game_SoundBuffer* soundBuffer)
 #define GAME_UPDATE(name) void name(game_ControllerInput* controllerInput)
 // TODO: Add additional bindings here

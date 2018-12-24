@@ -171,7 +171,8 @@ namespace {
                     "Fluffy Fortnight",             // Window Title
                     WS_OVERLAPPEDWINDOW|WS_VISIBLE, // Allow overlap and show window
                     CW_USEDEFAULT, CW_USEDEFAULT,   // use default coordinates (upper left)
-                    CW_USEDEFAULT, CW_USEDEFAULT,   // use default size (windows fullscreen)
+                    DEFAULT_GFX_BUFFER_WIDTH,
+                    DEFAULT_GFX_BUFFER_HEIGHT,   
                     NULL,                           // handle to parent (none because top level)
                     NULL,                           // handle to menu (none because top level)
                     hInstance,                      // handle to application instance
@@ -291,11 +292,13 @@ namespace {
         // TODO: Maintain aspect ratio
         StretchDIBits(
             window,                             // destination
-            0, 0, windowWidth, windowHeight,    // destination starting coordinates/dimensions to copy to
+            0, 0,                               // destination starting coordinates
+            srcBuffer->info.bmiHeader.biWidth,  // destination dimensions (1:1 for debugging purposes)
+            srcBuffer->info.bmiHeader.biHeight,    
             0, 0,                               // source starting coordinates
             srcBuffer->info.bmiHeader.biWidth,  // source copy dimensions
             srcBuffer->info.bmiHeader.biHeight,  
-            srcBuffer->memory,                  // data to copy/stretch
+            srcBuffer->memory,                  // data to copy
             &(srcBuffer->info),                 // header for data
             DIB_RGB_COLORS, SRCCOPY             // direct copy (non-palettized)
         );
@@ -337,7 +340,7 @@ namespace {
         bool isDown,
         game_ButtonState* out
     ) {
-        out->isDown = isDown;
+        out->isDown = &isDown;
 	    out->stateChangeCount++;
         
         char buffer[256];
@@ -361,40 +364,40 @@ namespace {
             // TODO: Collapse this into a for...loop???
             switch(vkCode) {
                 case 'Q': {
-                    win32_ProcessKeyboardInput(isDown, keyboard->LeftShoulder);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->LeftShoulder);
                 } break;
                 case 'W': {
-                    win32_ProcessKeyboardInput(isDown, keyboard->RightShoulder);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->RightShoulder);
                 } break;
                 case 'A': {
-                    win32_ProcessKeyboardInput(isDown, keyboard->Left);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->Left);
                 } break;
                 case 'S': {
-                    win32_ProcessKeyboardInput(isDown, keyboard->Top);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->Top);
                 } break;
                 case 'Z': {
-                    win32_ProcessKeyboardInput(isDown, keyboard->Bottom);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->Bottom);
                 } break;
                 case 'X': {
-                    win32_ProcessKeyboardInput(isDown, keyboard->Right);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->Right);
                 } break;
                 case VK_RETURN: {
-                    win32_ProcessKeyboardInput(isDown, keyboard->Start);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->Start);
                 } break;
                 case VK_LSHIFT: {
-                    win32_ProcessKeyboardInput(isDown, keyboard->Select);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->Select);
                 } break;
                 case VK_UP: {
-                    win32_ProcessKeyboardInput(isDown, keyboard->North);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->North);
                 } break;
                 case VK_DOWN: {
-                    win32_ProcessKeyboardInput(isDown, keyboard->South);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->South);
                 } break;
                 case VK_LEFT: {
-                    win32_ProcessKeyboardInput(isDown, keyboard->West);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->West);
                 } break;
                 case VK_RIGHT: {
-                    win32_ProcessKeyboardInput(isDown, keyboard->East);
+                    win32_ProcessKeyboardInput(isDown, &keyboard->East);
                 } break;
             }
         }
@@ -554,8 +557,8 @@ namespace {
             win32_ProcessDigitalButton(
                 in.wButtons,
                 XINPUT_BITMASKS[buttonIndex],
-                old->Buttons[buttonIndex],
-                out->Buttons[buttonIndex]
+                &old->Buttons[buttonIndex],
+                &out->Buttons[buttonIndex]
             );
         }
         // TODO: Possibly change this to calculate avg stick position based stick starting and ending position
@@ -654,28 +657,18 @@ int CALLBACK WinMain(
     game_GfxBuffer gfxPushBuffer    = {};                         // create the push buffer
     win32_GameCode gameCode         = {};                         // create the external code library
     
+    
     uint16_t errorCode;
     // HANDLE threadPool[4];
     void* audioParams               = 0;
     LPDWORD audioThreadId           = 0;
     //HANDLE audioThread              = CreateThread(NULL, NULL, win32_AudioCallback, audioParams, DELAY_THREAD_START, audioThreadId);
-    game_Memory memory              = {};
+    //game_Memory memory              = {};
     LPVOID baseAddress              = 0;
 
     // TODO: Enumerate HW and determine appropriate memory footprint
-    #if PROTOTYPE
     baseAddress                     = (LPVOID)TERABYTES(2);         // set base address for game memory so pointers are the same between runs DEBUGGING
-    memory.persistentStorageSize    = MEGABYTES(64);                // set the size of the persistent memory partition
-    memory.tempStorageSize          = GIGABYTES(4);                 // set the size of the working memory partition
-
-    // Allocate game memory
-    memory.persistentStorage        = VirtualAlloc(baseAddress, memory.persistentStorageSize + memory.tempStorageSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-    memory.persistentStorageHead    = (void*)baseAddress;                                                // set the start of persistent partition (lower values of game memory)
-    memory.tempStorage              = (uint8_t*)memory.persistentStorage + memory.persistentStorageSize;    // set temporary partition
-    memory.tempStorageHead          = (uint8_t*)memory.persistentStorage + memory.persistentStorageSize;    // set the start of temporary partition
-    #else
     void* memory                    = VirtualAlloc(baseAddress, ((uint64_t)MEGABYTES(64) + (uint64_t)GIGABYTES(4)), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-    #endif
 
     for(int i = 0; i < 4; i++) {
         // TODO: Create Threads
@@ -683,7 +676,7 @@ int CALLBACK WinMain(
 
     errorCode = win32_LoadGameCode(dllName, &gameCode);     // load the game code      
     errorCode = win32_InitWindow(hInstance, mainWindow);    // create the Main Window
-    frameBuffer = {};                        
+    frameBuffer = { };                        
     errorCode = win32_InitGfxBuffer(                        // initialize back buffer
         &frameBuffer,
         DEFAULT_GFX_BUFFER_WIDTH,
@@ -691,6 +684,7 @@ int CALLBACK WinMain(
     );
 
     // initialize a working sound buffer for the game code to manipulate
+    // TODO: Load Sound settings from ini file
     game_SoundBuffer soundPushBuffer    = {};
     soundPushBuffer.isInitialized       = true;
     soundPushBuffer.samplesPerSecond    = 48000;
@@ -706,6 +700,11 @@ int CALLBACK WinMain(
 
     gameCode.gameInit(&memory);
     game_Input input;
+
+    // initialize keyboard controller to always be digital
+    input.Controllers[NEW_KEYBOARD_INPUT].isAnalog = false;
+    input.Controllers[OLD_KEYBOARD_INPUT].isAnalog = false;
+    
     XINPUT_STATE controllerState;
 
     while((running)) {
@@ -727,16 +726,16 @@ int CALLBACK WinMain(
 
         // update input pointers to reflect frame change
         input.Controllers[OLD_CONTROLLER_INPUT] = input.Controllers[NEW_CONTROLLER_INPUT];
-        // grab input from controller/keyboard
+        // grab input from controller
         if(XInputGetState(0, &controllerState) == ERROR_SUCCESS) {
             win32_CreateGameController(
                 controllerState.Gamepad,
-                input.Controllers[OLD_CONTROLLER_INPUT],
-                input.Controllers[NEW_CONTROLLER_INPUT]
+                &input.Controllers[OLD_CONTROLLER_INPUT],
+                &input.Controllers[NEW_CONTROLLER_INPUT]
             );
             XINPUT_VIBRATION controllerOutput = {
-                input.Controllers[OLD_CONTROLLER_INPUT]->LeftVibration,
-                input.Controllers[OLD_CONTROLLER_INPUT]->RightVibration
+                input.Controllers[OLD_CONTROLLER_INPUT].LeftVibration,
+                input.Controllers[OLD_CONTROLLER_INPUT].RightVibration
             };
             XInputSetState(0, &controllerOutput);
         } else {    // Controller Unavailable
@@ -745,6 +744,7 @@ int CALLBACK WinMain(
         // end of input
 
 		if (gameCode.isValid) {
+            gameCode.gameUpdate(&input.Controllers[NEW_KEYBOARD_INPUT]);
             gameCode.gameRenderAudio(&soundPushBuffer);     // Call the game to fill an audio buffer
 			gameCode.gameRenderGfx(&gfxPushBuffer);         // Call the game to fill a graphics buffer
 		}
@@ -762,8 +762,8 @@ int CALLBACK WinMain(
         // update keyboard input pointers to reflect frame change
         input.Controllers[OLD_KEYBOARD_INPUT]   = input.Controllers[NEW_KEYBOARD_INPUT];
         win32_ProcessPendingMessages(       // check message queue
-            input.Controllers[OLD_KEYBOARD_INPUT],
-            input.Controllers[NEW_KEYBOARD_INPUT]
+            &input.Controllers[OLD_KEYBOARD_INPUT],
+            &input.Controllers[NEW_KEYBOARD_INPUT]
         );              
 
     }
