@@ -15,12 +15,10 @@ namespace {
     uint16_t win32_LoadGameCode(char* dllName, win32_GameCode* output);
     void win32_FreeGameCode(win32_GameCode* input);
     void win32_ProcessPendingMessages(
-        game_ControllerInput* old,
         game_ControllerInput* keyboardController
     );
     void win32_ProcessKeyboardMessages(
         MSG* msg,
-        game_ControllerInput* old,
         game_ControllerInput* keyboard
     );
     void win32_ProcessKeyboardInput(
@@ -287,12 +285,44 @@ namespace {
         HDC window,                             // Device Context for the destination window
         int windowWidth, int windowHeight,      // dimensions of the window
         win32_GfxBuffer* srcBuffer,             // source buffer
-        int x, int y                            // coordinates to offset (TODO: Implement offsets)
+        int offsetX, int offsetY                // coordinates to offset (TODO: Implement offsets)
     ) {
+        // TODO: Implement this
+        offsetX = 0;
+        offsetY = 0;
+        
+        // clear gutter to black
+        // TODO: Bad Code clean up
+        PatBlt(
+            window,                             // destination context
+            0, 0,                               // starting coordinates
+            offsetX, windowHeight,              // width of clear box
+            BLACKNESS                           // clear to black
+        );
+        PatBlt(
+            window,                             // destination context
+            0, 0,                               // starting coordinates
+            windowWidth, offsetY,               // width of clear box
+            BLACKNESS                           // clear to black
+        );
+        PatBlt(
+            window,                             // destination context
+            offsetX + srcBuffer->info.bmiHeader.biWidth, 0, // starting coordinates
+            windowWidth, windowHeight,          // width of clear box
+            BLACKNESS                           // clear to black
+        );
+        PatBlt(
+            window,                             // destination context
+            0, offsetY + srcBuffer->info.bmiHeader.biHeight, // starting coordinates
+            windowWidth, windowHeight,          // width of clear box
+            BLACKNESS                           // clear to black
+        );
+        // End bad code
+
         // TODO: Maintain aspect ratio
         StretchDIBits(
             window,                             // destination
-            0, 0,                               // destination starting coordinates
+            offsetX, offsetY,                   // destination starting coordinates
             srcBuffer->info.bmiHeader.biWidth,  // destination dimensions (1:1 for debugging purposes)
             srcBuffer->info.bmiHeader.biHeight,    
             0, 0,                               // source starting coordinates
@@ -308,7 +338,6 @@ namespace {
      * 
      *************************************************************************/
     void win32_ProcessPendingMessages(
-        game_ControllerInput* old,
         game_ControllerInput* keyboardController
     ) {
         MSG msg;
@@ -320,7 +349,6 @@ namespace {
 			    case WM_KEYUP: {                            // On Keyboard Event Message
                     win32_ProcessKeyboardMessages(
                         &msg,
-                        old,
                         keyboardController
                     );
                 } break;
@@ -342,10 +370,6 @@ namespace {
     ) {
         out->isDown = &isDown;
 	    out->stateChangeCount++;
-        
-        char buffer[256];
-        wsprintfA(buffer, "State Change Count: %d\n", out->stateChangeCount);
-        OutputDebugStringA(buffer);
     }
 
     /**************************************************************************
@@ -353,7 +377,6 @@ namespace {
      *************************************************************************/
     void win32_ProcessKeyboardMessages(
         MSG* msg,
-        game_ControllerInput* old,
         game_ControllerInput* keyboard
     ) {
         uint32_t vkCode = (uint32_t)msg->wParam;            // Unpack key
@@ -401,6 +424,7 @@ namespace {
                 } break;
             }
         }
+           
         running = !((vkCode == VK_F4) && (altKeyWasDown));  // Check for Alt + F4
     }
 
@@ -699,11 +723,17 @@ int CALLBACK WinMain(
     }
 
     gameCode.gameInit(&memory);
-    game_Input input;
+    game_Input Controllers[2];
+    game_Input* inputA = &Controllers[0];
+    game_Input* inputB = &Controllers[1];
+    game_Input* tempController = inputA;
+    
 
     // initialize keyboard controller to always be digital
-    input.Controllers[NEW_KEYBOARD_INPUT].isAnalog = false;
-    input.Controllers[OLD_KEYBOARD_INPUT].isAnalog = false;
+    inputA->Controllers[KEYBOARD_INPUT] = {};
+    inputA->KeyboardController.isAnalog = false;
+    inputB->Controllers[KEYBOARD_INPUT] = {};
+    inputB->KeyboardController.isAnalog = false;
     
     XINPUT_STATE controllerState;
 
@@ -713,6 +743,9 @@ int CALLBACK WinMain(
         FILETIME dllWriteTime = {};
         win32_GetLastWriteTime(dllName, &dllWriteTime);
         if(CompareFileTime(&dllWriteTime, &gameCode.dllTimeStamp) != 0) { 
+            char buffer[256];
+            wsprintfA(buffer, "Was Down: %d\n", dllWriteTime);
+            OutputDebugStringA(buffer);
             win32_FreeGameCode(&gameCode);
             errorCode = win32_LoadGameCode(dllName, &gameCode);
         }
@@ -725,17 +758,20 @@ int CALLBACK WinMain(
         gfxPushBuffer.channelCount = frameBuffer.channelCount;
 
         // update input pointers to reflect frame change
-        input.Controllers[OLD_CONTROLLER_INPUT] = input.Controllers[NEW_CONTROLLER_INPUT];
+        tempController->GamePadController = inputA->GamePadController;
+        inputA->GamePadController = inputB->GamePadController;
+        inputB->GamePadController = tempController->GamePadController;
+
         // grab input from controller
         if(XInputGetState(0, &controllerState) == ERROR_SUCCESS) {
             win32_CreateGameController(
                 controllerState.Gamepad,
-                &input.Controllers[OLD_CONTROLLER_INPUT],
-                &input.Controllers[NEW_CONTROLLER_INPUT]
+                &inputB->GamePadController,
+                &inputA->GamePadController
             );
             XINPUT_VIBRATION controllerOutput = {
-                input.Controllers[OLD_CONTROLLER_INPUT].LeftVibration,
-                input.Controllers[OLD_CONTROLLER_INPUT].RightVibration
+                inputB->GamePadController.LeftVibration,
+                inputB->GamePadController.RightVibration
             };
             XInputSetState(0, &controllerOutput);
         } else {    // Controller Unavailable
@@ -744,13 +780,14 @@ int CALLBACK WinMain(
         // end of input
 
 		if (gameCode.isValid) {
-            gameCode.gameUpdate(&input.Controllers[NEW_KEYBOARD_INPUT]);
+            gameCode.gameUpdate(&inputA->KeyboardController);
             gameCode.gameRenderAudio(&soundPushBuffer);     // Call the game to fill an audio buffer
 			gameCode.gameRenderGfx(&gfxPushBuffer);         // Call the game to fill a graphics buffer
 		}
-        win32_ProcessGameSound(
+       /* win32_ProcessGameSound(
             &soundPushBuffer,
             &audioEngine.soundBuffer);          // push the game audio to the XAudio2 buffer
+        */
         // audioEngine.srcVoice->Start(0);      // Start playing the buffer
         deviceContext = GetDC(mainWindow);      // Get a device context to the window
         win32_CopyBufferToWindow(               // FLIP
@@ -760,10 +797,9 @@ int CALLBACK WinMain(
         );
 
         // update keyboard input pointers to reflect frame change
-        input.Controllers[OLD_KEYBOARD_INPUT]   = input.Controllers[NEW_KEYBOARD_INPUT];
+        inputA->KeyboardController = inputB->KeyboardController;
         win32_ProcessPendingMessages(       // check message queue
-            &input.Controllers[OLD_KEYBOARD_INPUT],
-            &input.Controllers[NEW_KEYBOARD_INPUT]
+            &inputA->KeyboardController
         );              
 
     }

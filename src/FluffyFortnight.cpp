@@ -4,6 +4,19 @@ namespace {
     
     game_Memory         gameMemory = { };
     game_State          gameState;
+    // TODO: Convert this to a TRS Transformation Matrix
+    
+    game_TileMap LEVEL_1 = {
+        0.0f,
+        0.0f,
+        16,
+        9,
+        120,
+        120,
+        &LEVEL1
+    };
+
+
     /**************************************************************************
     * Internal Methods 
     **************************************************************************/
@@ -12,8 +25,8 @@ namespace {
     * Forward Declarations
     **************************************************************************/
     void renderTestGradient(game_GfxBuffer* gfxBuffer);
-    inline uint32_t roundFloatToUInt(float value);
-    inline int32_t roundFloatToInt(float value);
+    inline unsigned int roundFloatToUInt(float value);
+    inline int roundFloatToInt(float value);
     void drawRect(
         float x0, float y0,     // coordinates of the top left corner
         float x1, float y1,     // coordinates of the botom right corner
@@ -21,7 +34,7 @@ namespace {
         game_GfxBuffer* buffer
     );
     void drawTileMap(
-        uint8_t map[][16],      // 2-D array of integers representing the pallettized map
+        game_TileMap* map,      // 2-D array of integers representing the pallettized map
         game_GfxBuffer* out     // the graphics buffer to write to.
     );
     void drawPlayer(
@@ -64,14 +77,28 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/
-    inline int32_t roundFloatToInt(float value) {
-        return (int32_t)(value + 0.5f);
+    inline int roundFloatToInt(float value) {
+        return (int)(value + 0.5f);
     }
     /**************************************************************************
      * 
      *************************************************************************/
-    inline uint32_t roundFloatToUInt(float value) {
-        return (uint32_t)(value + 0.5f);
+    inline unsigned int roundFloatToUInt(float value) {
+        return (unsigned int)(value + 0.5f);
+    }
+
+    /**************************************************************************
+     * 
+     *************************************************************************/ 
+    inline int truncateFloatToInt(float value) {
+        return (int)(value);
+    }
+
+    /**************************************************************************
+     * 
+     *************************************************************************/ 
+    inline unsigned int truncateFloatToUInt(float value) {
+        return (unsigned int)(value);
     }
 
     /**************************************************************************
@@ -84,8 +111,10 @@ namespace {
     ) {
         game_Color color = { 0.0f, 0.25f, 1.0f, 1.0f };
         
-        float playerWidth     = 30.0f;
-        float playerHeight    = 60.0f;
+        float playerWidth   = 30.0f;
+        float playerHeight  = 60.0f;
+
+
         drawRect(
             x, y,
             (x + playerWidth),
@@ -99,17 +128,22 @@ namespace {
      * 
      *************************************************************************/
     void drawTileMap(
-        uint8_t map[][16],
+        game_TileMap* map,
         game_GfxBuffer* out 
     ) {
         game_Color color;
-        int32_t sizeI = 16;
-        int32_t sizeJ = 9;
-        int32_t tileWidth = 120;
-        int32_t tileHeight = 120;
-        for(int32_t j = 0; j < sizeJ; j++) {
-            for(int32_t i = 0; i < sizeI; i++) {
-                switch(map[j][i]) {
+        game_Color highlight = { 0.75f, 0.75f, 0.75f };
+        int playerTileX   = truncateFloatToInt(*(gameState.playerX) - map->offsetX) / (int)map->tileWidth;
+        int playerTileY   = truncateFloatToInt(*(gameState.playerY) - map->offsetY) / (int)map->tileHeight;    
+
+        for(int32_t j = 0; j < map->CountY; j++) {
+            char buffer[1024];
+            wsprintfA(buffer, "J: %d\n", j);
+            //OutputDebugStringA(buffer);
+            for(int32_t i = 0; i < map->CountX; i++) {
+                wsprintfA(buffer, "I: %d\n", i);
+                //OutputDebugStringA(buffer);
+                switch(*(*(*(map->data) + j) + i)) {
                 case 0: {
                     color = { 0.5f, 0.5f, 0.5f, 0.5f };
                 } break;
@@ -118,10 +152,12 @@ namespace {
                 } break;
                 
                 }
-                float x0 = (float)(i * tileWidth);
-                float y0 = (float)(j * tileHeight);
-                float x1 = (float)(i * tileWidth) + tileWidth + 1;
-                float y1 = (float)(j * tileWidth) + tileWidth + 1;
+                wsprintfA(buffer, "Tile: %d\n", *(map->data)[j][i]);
+              //  OutputDebugStringA(buffer);
+                float x0 = (float)(i * map->tileWidth);
+                float y0 = (float)(j * map->tileHeight);
+                float x1 = (float)(i * map->tileWidth) + map->tileWidth + 1;
+                float y1 = (float)(j * map->tileWidth) + map->tileWidth + 1;
                 drawRect(
                     x0, y0,
                     x1, y1,
@@ -129,6 +165,19 @@ namespace {
                 );
             }
         }
+        drawRect(
+            (float)playerTileX * map->tileWidth,
+            (float)playerTileY * map->tileHeight,
+            (float)(playerTileX + 1) * map->tileWidth,
+            (float)(playerTileY + 1) * map->tileHeight,
+            &highlight, out
+        );
+
+        drawPlayer(
+            *(gameState.playerX),
+            *(gameState.playerY),
+            out
+    );
     }
 
     /**************************************************************************
@@ -151,6 +200,7 @@ namespace {
         int32_t intX1  = roundFloatToInt(x1);
         int32_t intY0  = roundFloatToInt(y0);
         int32_t intY1  = roundFloatToInt(y1);
+
         // force the edges of the screen
         intX0 = (intX0 < 0) ? 0 : intX0;
         intX1 = (intX1 > buffer->width) ? buffer->width : intX1;
@@ -227,12 +277,35 @@ namespace {
         gameMemory.persistentStorageSize -= sizeof(uint16_t*);
 
         
-        
-
-
-        
-        gameMemory.isInitialized               = true;
+        gameMemory.isInitialized = true;
         // TODO: implement memory management
+    }
+
+
+
+    /**************************************************************************
+     * 
+     *************************************************************************/ 
+    bool tileCollision(
+        float testX,
+        float testY,
+        game_TileMap* map
+    ) {
+        int playerTileX   = truncateFloatToInt(testX - map->offsetX) / (int)map->tileWidth;
+        int playerTileY   = truncateFloatToInt(testY - map->offsetY) / (int)map->tileHeight;    
+        
+        bool result = false;
+        char buffer[1024];
+        wsprintfA(buffer, "Coords: { %4d.2, %4d.2 } \n", testX, testY);
+        OutputDebugStringA(buffer);
+
+        if  ((playerTileX >= 0 && playerTileX < map->CountX) &&
+            (playerTileY >= 0 && playerTileY < map->CountY)) {
+               unsigned int tileValue = *(*(*(map->data) + playerTileY) + playerTileX);
+               result = (tileValue == 0);
+        }
+
+        return result;
     }
     /**************************************************************************
      * 
@@ -245,28 +318,58 @@ namespace {
         }
 
     }
+
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    void resetControllerStateCounter(game_ControllerInput* controller) {
+        for(char i = 0; i < MAX_BUTTON_COUNT; i++) {
+            controller->Buttons[i].stateChangeCount = 0;
+        }
+
+    }
     /**************************************************************************
      * 
      *************************************************************************/
     void parseInput(game_ControllerInput* controller) {
+        float dPlayerX = 0.0f;
+        float dPlayerY = 0.0f;
         if(controller->isAnalog) {
             // TODO: Analog stick processing
         } else {
             // TODO: Digital Input Processing
+            // TODO: Add player-centric movement (ie map offsets)
             if(controller->East.isDown) {
-                *gameState.playerX += 5.0f;
+                dPlayerX += 1.0f;
             } else if (controller->West.isDown ) {
-                *gameState.playerX -= 5.0f;
+                dPlayerX -= 1.0f;
             }
 
             if(controller->North.isDown) {
-                *gameState.playerY -= 5.0f;
+                dPlayerY += 1.0f;
             } else if(controller->South.isDown){
-                *gameState.playerY += 5.0f;
+                dPlayerY -= 1.0f;
             }
         }
+
+        dPlayerX *= 15.0f;
+        dPlayerY *= 15.0f;
+        bool collisionCheck = tileCollision(
+            *(gameState.playerX) + dPlayerX,
+            *(gameState.playerY) + dPlayerY,
+            &LEVEL_1
+        );
+
+
+        if(!collisionCheck) {
+            dPlayerX = 0.0f;
+            dPlayerY = 0.0f;
+        }
         
+        *(gameState.playerX) += dPlayerX;
+        *(gameState.playerY) += dPlayerY;    
     }
+
 
 }
 /******************************************************************************
@@ -274,12 +377,8 @@ namespace {
  *****************************************************************************/
 extern "C" GAME_RENDER_GFX(renderGameGfx) {
     renderTestGradient(gfxBuffer);
-    drawTileMap(LEVEL1, gfxBuffer);
-    drawPlayer(
-        *(gameState.playerX),
-        *(gameState.playerY),
-        gfxBuffer
-    );
+    drawTileMap(&LEVEL_1, gfxBuffer);
+
 }
 
 /******************************************************************************
@@ -302,4 +401,7 @@ extern "C" GAME_RENDER_AUDIO(renderGameAudio) {
 extern "C" GAME_UPDATE(updateGame) {
     parseInput(controllerInput);
     inputTest(controllerInput);
+    // TODO: Move once this starts polling more than once per frame
+    resetControllerStateCounter(controllerInput);
+    
 }

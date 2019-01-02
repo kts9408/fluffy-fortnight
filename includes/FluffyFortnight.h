@@ -6,21 +6,22 @@
  * 0    - Release build
  *****************************************************************************/
 #define PROTOTYPE 1
-#define MAX_INPUT_COUNT 4
-#define NEW_CONTROLLER_INPUT 0
-#define OLD_CONTROLLER_INPUT 1
-#define NEW_KEYBOARD_INPUT 2
-#define OLD_KEYBOARD_INPUT 3
+#define MAX_INPUT_COUNT 2
+#define KEYBOARD_INPUT 0
+#define GAMEPAD_INPUT 1
 #define MAX_BUTTON_COUNT 12
+
 /******************************************************************************
  * 
  *****************************************************************************/
 
 // External Dependencies
 #include <stdint.h>
+
 // PROTOTYPING - TODO: Replace math functions with more efficent versions
 #if PROTOTYPE
 #include <math.h>              
+#include <Windows.h>
 #endif
 
 /******************************************************************************
@@ -40,7 +41,7 @@ const int DEFAULT_GFX_BUFFER_WIDTH = 1920;
 const int DEFAULT_GFX_BUFFER_HEIGHT = 1080;
 const float PI32 = 3.14159265359f;
 uint8_t LEVEL1[9][16] = {
-    { 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1 },
+    { 0,0,0,1, 1,1,1,1, 1,1,1,1, 1,1,1,1 },
     { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
     { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
     { 1,0,0,0, 0,0,0,0, 0,1,0,0, 0,0,0,1 },
@@ -101,16 +102,22 @@ struct game_Color {
 // TODO: Replace color rectangles with bitmaps
 struct game_Tile {
     game_Color* color;
-    uint8_t     index;
-    float       width;
-    float       height;
     uint8_t     isPassable;
 };
 
 // struct representing a map
 // TODO: Store in Compressed Sparse Row or Compressed Sparse Column
 struct game_TileMap {
+    float   offsetX;
+    float   offsetY;
 
+    int     CountX;
+    int     CountY;
+
+    float   tileWidth;
+    float   tileHeight;
+
+    uint8_t (*data)[9][16];
 };
 
 // struct representing a platform independent sound buffer for the game to work with.
@@ -172,8 +179,14 @@ struct game_ControllerInput {
 
 // struct encapsulating all sources of input used by the game layer
 struct game_Input {
-    // TODO: Insert clock values
-    game_ControllerInput     Controllers[MAX_INPUT_COUNT];
+    // TODO: Insert clock values        
+    union {
+        game_ControllerInput    Controllers[MAX_INPUT_COUNT];
+        struct {
+            game_ControllerInput    KeyboardController;
+            game_ControllerInput    GamePadController;
+        };
+    };   
 };
 
 /******************************************************************************
