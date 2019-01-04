@@ -30,7 +30,7 @@ FACE BUTTONS
 * SELECT              - 'VK_LSHIFT'
 
 D-PAD
-*UP                  - 'VK_UP'
-*DOWN                - 'VK_DOWN'
-*LEFT                - 'VK_LEFT'
-*RIGHT               - 'VK_RIGHT'
+* UP                  - 'VK_UP'
+* DOWN                - 'VK_DOWN'
+* LEFT                - 'VK_LEFT'
+* RIGHT               - 'VK_RIGHT'
