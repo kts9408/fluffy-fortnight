@@ -68,6 +68,20 @@ uint8_t TILE_DATA1[9][16] = {
 /******************************************************************************
  * STRUCTS
  *****************************************************************************/
+// struct representing a map
+// TODO: Store in Compressed Sparse Row or Compressed Sparse Column
+struct game_TileMap {
+    float   offsetX;
+    float   offsetY;
+
+    int     CountX;
+    int     CountY;
+
+    float   tileWidth;
+    float   tileHeight;
+
+    uint8_t* data ;
+};
 
 // struct containing the state of the game persistant from frame to frame
 struct game_State {
@@ -76,6 +90,7 @@ struct game_State {
     float*          playerY;
     uint16_t*       currentMap;
     uint16_t*       inputContext;
+    game_TileMap*   Level[2];
 };
 
 // struct containing the different memory partitions
@@ -116,21 +131,6 @@ struct game_Color {
 struct game_Tile {
     game_Color* color;
     uint8_t     isPassable;
-};
-
-// struct representing a map
-// TODO: Store in Compressed Sparse Row or Compressed Sparse Column
-struct game_TileMap {
-    float   offsetX;
-    float   offsetY;
-
-    int     CountX;
-    int     CountY;
-
-    float   tileWidth;
-    float   tileHeight;
-
-    uint8_t* data ;
 };
 
 // struct representing a platform independent sound buffer for the game to work with.

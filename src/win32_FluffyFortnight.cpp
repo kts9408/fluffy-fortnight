@@ -730,9 +730,9 @@ int CALLBACK WinMain(
     
 
     // initialize keyboard controller to always be digital
-    inputA->Controllers[KEYBOARD_INPUT] = {};
+    inputA->KeyboardController = { 0 };
     inputA->KeyboardController.isAnalog = false;
-    inputB->Controllers[KEYBOARD_INPUT] = {};
+    inputB->KeyboardController = { 0 };
     inputB->KeyboardController.isAnalog = false;
     
     XINPUT_STATE controllerState;
@@ -743,10 +743,7 @@ int CALLBACK WinMain(
         FILETIME dllWriteTime = {};
         win32_GetLastWriteTime(dllName, &dllWriteTime);
         if(CompareFileTime(&dllWriteTime, &gameCode.dllTimeStamp) != 0) { 
-            char buffer[256];
-            wsprintfA(buffer, "Was Down: %d\n", dllWriteTime);
-            OutputDebugStringA(buffer);
-            win32_FreeGameCode(&gameCode);
+
             errorCode = win32_LoadGameCode(dllName, &gameCode);
         }
 

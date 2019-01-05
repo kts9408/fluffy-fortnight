@@ -249,29 +249,54 @@ namespace {
         gameState.t = (float*)(gameMemory.persistentStorage);
         *(gameState.t) = 0.0f;
         gameMemory.persistentStorage = (float*)gameMemory.persistentStorage + 1;
-        gameMemory.persistentStorageSize -= sizeof(float*);
+        gameMemory.persistentStorageSize -= sizeof(float);
 
         gameState.playerX = (float*)(gameMemory.persistentStorage);
         *(gameState.playerX) = 0.0f;
         gameMemory.persistentStorage = (float*)gameMemory.persistentStorage + 1;
-        gameMemory.persistentStorageSize -= sizeof(float*);
+        gameMemory.persistentStorageSize -= sizeof(float);
 
         gameState.playerY = (float*)(gameMemory.persistentStorage);
         *(gameState.playerY) = 0.0f;
         gameMemory.persistentStorage = (float*)gameMemory.persistentStorage + 1;
-        gameMemory.persistentStorageSize -= sizeof(float*);
+        gameMemory.persistentStorageSize -= sizeof(float);
 
         gameState.inputContext = (uint16_t*)(gameMemory.persistentStorage);
         *(gameState.inputContext) = 0;
         gameMemory.persistentStorage = (uint16_t*)gameMemory.persistentStorage + 1;
-        gameMemory.persistentStorageSize -= sizeof(uint16_t*);
+        gameMemory.persistentStorageSize -= sizeof(uint16_t);
 
         gameState.currentMap = (uint16_t*)(gameMemory.persistentStorage);
         *(gameState.currentMap) = 0;
         gameMemory.persistentStorage = (uint16_t*)gameMemory.persistentStorage + 1;
-        gameMemory.persistentStorageSize -= sizeof(uint16_t*);
+        gameMemory.persistentStorageSize -= sizeof(uint16_t);
 
+        gameState.Level[0] = (game_TileMap*)(gameMemory.tempStorage);
+        gameMemory.tempStorage = (game_TileMap*)gameMemory.tempStorage + 1;
+        gameMemory.tempStorageSize -= sizeof(game_TileMap);
+        *(gameState.Level[0]) = {
+            0.0f,
+            0.0f,
+            16,
+            9,
+            120,
+            120,
+            (uint8_t*)&TILE_DATA0
+        };
         
+        gameState.Level[1] = (game_TileMap*)(gameMemory.tempStorage);
+        gameMemory.tempStorage = (game_TileMap*)gameMemory.tempStorage + 1;
+        gameMemory.tempStorageSize -= sizeof(game_TileMap);
+        *(gameState.Level[1]) = {
+            0.0f,
+            0.0f,
+            16,
+            9,
+            120,
+            120,
+            (uint8_t*)&TILE_DATA1
+        };
+
         gameMemory.isInitialized = true;
         // TODO: implement memory management
     }
@@ -377,17 +402,8 @@ namespace {
  * Public Methods
  *****************************************************************************/
 extern "C" GAME_RENDER_GFX(renderGameGfx) {
-    Level[0] = {
-        0.0f,
-        0.0f,
-        16,
-        9,
-        120,
-        120,
-        (uint8_t*)&TILE_DATA0
-    };
-    Level[1] = Level[0];
-    Level[1].data = (uint8_t*)&TILE_DATA1;
+
+    // Level[1].data = (uint8_t*)&TILE_DATA1;
 
     renderTestGradient(gfxBuffer);
     drawTileMap(&Level[*gameState.currentMap], gfxBuffer);
