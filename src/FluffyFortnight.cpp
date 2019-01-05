@@ -4,17 +4,14 @@ namespace {
     
     game_Memory         gameMemory = { };
     game_State          gameState;
-    // TODO: Convert this to a TRS Transformation Matrix
+
+    game_TileMap Level[2] = { 0 };
+
     
-    game_TileMap LEVEL_1 = {
-        0.0f,
-        0.0f,
-        16,
-        9,
-        120,
-        120,
-        &LEVEL1
-    };
+
+    // TODO: Incorporate into player struct
+    float playerWidth   = 30.0f;
+    float playerHeight  = 60.0f;
 	 
 
     /**************************************************************************
@@ -111,8 +108,7 @@ namespace {
     ) {
         game_Color color = { 0.0f, 0.25f, 1.0f, 1.0f };
         
-        float playerWidth   = 30.0f;
-        float playerHeight  = 60.0f;
+
 
 
         drawRect(
@@ -137,13 +133,8 @@ namespace {
         int playerTileY   = truncateFloatToInt(*(gameState.playerY) - map->offsetY) / (int)map->tileHeight;    
 
         for(int32_t j = 0; j < map->CountY; j++) {
-            char buffer[1024];
-            wsprintfA(buffer, "J: %d\n", j);
-            //OutputDebugStringA(buffer);
             for(int32_t i = 0; i < map->CountX; i++) {
-                wsprintfA(buffer, "I: %d\n", i);
-                //OutputDebugStringA(buffer);
-                switch(*(*(*(map->data) + j) + i)) {
+                switch(map->data[j * map->CountX + i]) {
                 case 0: {
                     color = { 0.5f, 0.5f, 0.5f, 0.5f };
                 } break;
@@ -152,8 +143,7 @@ namespace {
                 } break;
                 
                 }
-                wsprintfA(buffer, "Tile: %d\n", *(map->data)[j][i]);
-              //  OutputDebugStringA(buffer);
+                
                 float x0 = (float)(i * map->tileWidth);
                 float y0 = (float)(j * map->tileHeight);
                 float x1 = (float)(i * map->tileWidth) + map->tileWidth + 1;
@@ -276,6 +266,11 @@ namespace {
         gameMemory.persistentStorage = (uint16_t*)gameMemory.persistentStorage + 1;
         gameMemory.persistentStorageSize -= sizeof(uint16_t*);
 
+        gameState.currentMap = (uint16_t*)(gameMemory.persistentStorage);
+        *(gameState.currentMap) = 0;
+        gameMemory.persistentStorage = (uint16_t*)gameMemory.persistentStorage + 1;
+        gameMemory.persistentStorageSize -= sizeof(uint16_t*);
+
         
         gameMemory.isInitialized = true;
         // TODO: implement memory management
@@ -292,16 +287,12 @@ namespace {
         game_TileMap* map
     ) {
         int playerTileX   = truncateFloatToInt(testX - map->offsetX) / (int)map->tileWidth;
-        int playerTileY   = truncateFloatToInt(testY - map->offsetY) / (int)map->tileHeight;    
-        
+        int playerTileY   = truncateFloatToInt(testY - map->offsetY) / (int)map->tileHeight;        
         bool result = false;
-        char buffer[1024];
-        wsprintfA(buffer, "Coords: { %4d.2, %4d.2 } \n", testX, testY);
-        OutputDebugStringA(buffer);
-
+    
         if  ((playerTileX >= 0 && playerTileX < map->CountX) &&
             (playerTileY >= 0 && playerTileY < map->CountY)) {
-               unsigned int tileValue = *(*(*(map->data) + playerTileY) + playerTileX);
+               unsigned int tileValue = map->data[playerTileY * map->CountX + playerTileX];
                result = (tileValue == 0);
         }
 
@@ -355,9 +346,19 @@ namespace {
         dPlayerX *= 15.0f;
         dPlayerY *= 15.0f;
         bool collisionCheck = tileCollision(
-            *(gameState.playerX) + dPlayerX,
+            *(gameState.playerX) + dPlayerX - 0.5f*playerWidth,
             *(gameState.playerY) + dPlayerY,
-            &LEVEL_1
+            &Level[*gameState.currentMap]
+        ) && 
+        tileCollision(
+            *(gameState.playerX) + dPlayerX + 0.5f*playerWidth,
+            *(gameState.playerY) + dPlayerY,
+            &Level[*gameState.currentMap]
+        ) &&
+        tileCollision(
+            *(gameState.playerX) + dPlayerX + playerWidth,
+            *(gameState.playerY) + dPlayerY,
+            &Level[*gameState.currentMap]
         );
 
 
@@ -376,8 +377,20 @@ namespace {
  * Public Methods
  *****************************************************************************/
 extern "C" GAME_RENDER_GFX(renderGameGfx) {
+    Level[0] = {
+        0.0f,
+        0.0f,
+        16,
+        9,
+        120,
+        120,
+        (uint8_t*)&TILE_DATA0
+    };
+    Level[1] = Level[0];
+    Level[1].data = (uint8_t*)&TILE_DATA1;
+
     renderTestGradient(gfxBuffer);
-    drawTileMap(&LEVEL_1, gfxBuffer);
+    drawTileMap(&Level[*gameState.currentMap], gfxBuffer);
 
 }
 
