@@ -300,22 +300,22 @@ namespace {
             BLACKNESS                           // clear to black
         );
         PatBlt(
-            window,                             // destination context
-            0, 0,                               // starting coordinates
-            windowWidth, offsetY,               // width of clear box
-            BLACKNESS                           // clear to black
+            window,                             
+            0, 0,                               
+            windowWidth, offsetY,               
+            BLACKNESS                           
         );
         PatBlt(
-            window,                             // destination context
-            offsetX + srcBuffer->info.bmiHeader.biWidth, 0, // starting coordinates
-            windowWidth, windowHeight,          // width of clear box
-            BLACKNESS                           // clear to black
+            window,                             
+            offsetX + srcBuffer->info.bmiHeader.biWidth, 0,
+            windowWidth, windowHeight,          
+            BLACKNESS                           
         );
         PatBlt(
-            window,                             // destination context
-            0, offsetY + srcBuffer->info.bmiHeader.biHeight, // starting coordinates
-            windowWidth, windowHeight,          // width of clear box
-            BLACKNESS                           // clear to black
+            window,                             
+            0, offsetY + srcBuffer->info.bmiHeader.biHeight,
+            windowWidth, windowHeight,          
+            BLACKNESS                           
         );
         // End bad code
 

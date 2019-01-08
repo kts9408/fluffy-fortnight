@@ -108,9 +108,6 @@ namespace {
     ) {
         game_Color color = { 0.0f, 0.25f, 1.0f, 1.0f };
         
-
-
-
         drawRect(
             x, y,
             (x + playerWidth),
@@ -140,6 +137,12 @@ namespace {
                 } break;
                 case 1: {
                     color = { 1.0f, 1.0f, 1.0f, 1.0f };
+                } break;
+                case 2: {
+                    color = { 0.145f, 0.913f, 0.247f };
+                } break;
+                case 3: {
+                    color = { 0.913f, 0.145f, 0.909f }; 
                 } break;
                 
                 }
@@ -271,6 +274,7 @@ namespace {
         gameMemory.persistentStorage = (uint16_t*)gameMemory.persistentStorage + 1;
         gameMemory.persistentStorageSize -= sizeof(uint16_t);
 
+    /* TODO: DEBUG THIS!
         gameState.Level[0] = (game_TileMap*)(gameMemory.tempStorage);
         gameMemory.tempStorage = (game_TileMap*)gameMemory.tempStorage + 1;
         gameMemory.tempStorageSize -= sizeof(game_TileMap);
@@ -296,7 +300,7 @@ namespace {
             120,
             (uint8_t*)&TILE_DATA1
         };
-
+*/
         gameMemory.isInitialized = true;
         // TODO: implement memory management
     }
@@ -314,11 +318,28 @@ namespace {
         int playerTileX   = truncateFloatToInt(testX - map->offsetX) / (int)map->tileWidth;
         int playerTileY   = truncateFloatToInt(testY - map->offsetY) / (int)map->tileHeight;        
         bool result = false;
+        unsigned int tileValue;
     
         if  ((playerTileX >= 0 && playerTileX < map->CountX) &&
             (playerTileY >= 0 && playerTileY < map->CountY)) {
-               unsigned int tileValue = map->data[playerTileY * map->CountX + playerTileX];
-               result = (tileValue == 0);
+            tileValue = map->data[playerTileY * map->CountX + playerTileX];
+            // TODO: Change transition tiles to a z coordinate shift
+            switch(tileValue) {
+            case 0: {
+                result = true;
+            } break;
+            case 1: {
+                result = false;
+            } break;
+            case 2: {
+                (*gameState.currentMap)--;
+                result = true;
+            } break;
+            case 3: {
+                (*gameState.currentMap)++;
+                result = true;
+            } break;
+            }
         }
 
         return result;
@@ -402,9 +423,26 @@ namespace {
  * Public Methods
  *****************************************************************************/
 extern "C" GAME_RENDER_GFX(renderGameGfx) {
-
-    // Level[1].data = (uint8_t*)&TILE_DATA1;
-
+    // TODO: Move this off of the stack and into game memory
+    Level[0] = {
+        0.0f,
+        0.0f,
+        16,
+        9,
+        120,
+        120,
+        (uint8_t*)&TILE_DATA0
+    };
+    Level[1] = {
+        0.0f,
+        0.0f,
+        16,
+        9,
+        120,
+        120,
+        (uint8_t*)&TILE_DATA1
+    };
+    
     renderTestGradient(gfxBuffer);
     drawTileMap(&Level[*gameState.currentMap], gfxBuffer);
 
@@ -428,6 +466,25 @@ extern "C" GAME_RENDER_AUDIO(renderGameAudio) {
  * 
  *****************************************************************************/
 extern "C" GAME_UPDATE(updateGame) {
+        // TODO: Move this off of the stack and into game memory
+    Level[0] = {
+        0.0f,
+        0.0f,
+        16,
+        9,
+        120,
+        120,
+        (uint8_t*)&TILE_DATA0
+    };
+    Level[1] = {
+        0.0f,
+        0.0f,
+        16,
+        9,
+        120,
+        120,
+        (uint8_t*)&TILE_DATA1
+    };
     parseInput(controllerInput);
     inputTest(controllerInput);
     // TODO: Move once this starts polling more than once per frame
