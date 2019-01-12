@@ -40,7 +40,7 @@
 const int DEFAULT_GFX_BUFFER_WIDTH = 1920;
 const int DEFAULT_GFX_BUFFER_HEIGHT = 1080;
 const float PI32 = 3.14159265359f;
-uint8_t TILE_DATA0[9][16] = {
+uint8_t TILE_DATA00[9][16] = {
     { 0,0,0,1, 1,1,1,2, 1,1,1,1, 1,1,1,1 },
     { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
     { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
@@ -52,7 +52,30 @@ uint8_t TILE_DATA0[9][16] = {
     { 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1 }
 };
 
-uint8_t TILE_DATA1[9][16] = {
+uint8_t TILE_DATA01[9][16] = {
+    { 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1 },
+    { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,0,0,0, 0,1,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,1,1,1, 1,1,1,3, 1,1,1,1, 1,1,1,1 }
+};
+uint8_t TILE_DATA10[9][16] = {
+    { 0,0,0,1, 1,1,1,2, 1,1,1,1, 1,1,1,1 },
+    { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,0,0,0, 0,1,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,1,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
+    { 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1 }
+};
+
+uint8_t TILE_DATA11[9][16] = {
     { 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1 },
     { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
     { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
@@ -68,24 +91,39 @@ uint8_t TILE_DATA1[9][16] = {
 /******************************************************************************
  * STRUCTS
  *****************************************************************************/
+// Struct representing a location in the game world coordinates
+struct game_UnifiedPosition {  
+    uint32_t    MapX;       // Upper 16 bits = MapX; Lower 16 bits TileX
+    uint32_t    MapY;       // Upper 16 bits = MapY; Lower 16 bits TileY
+    uint32_t    MapZ;       // Upper 16 bits = WorldZ; Lower 16 bits MapSetZ
+};
+
 // struct representing a map
 // TODO: Store in Compressed Sparse Row or Compressed Sparse Column
 struct game_TileMap {
-    float   offsetX;
+    float   offsetX;    // offset for the entire map
     float   offsetY;
 
-    int     CountX;
-    int     CountY;
+    int     CountX;     // number of horizontal tiles
+    int     CountY;     // number of vertical tiles
 
-    float   tileWidth;
-    float   tileHeight;
+    float   tileWidth;  // width of a tile
+    float   tileHeight; // height of a tile
 
     uint8_t* data ;
+};
+
+struct game_MapSet {
+    int             CountX;
+    int             CountY;
+
+    game_TileMap*   data;
 };
 
 // struct containing the state of the game persistant from frame to frame
 struct game_State {
     float*          t;          // persistent time
+    game_UnifiedPosition*  playerPosition;
     float*          playerX;    
     float*          playerY;
     uint16_t*       currentMap;

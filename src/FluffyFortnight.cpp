@@ -5,7 +5,7 @@ namespace {
     game_Memory         gameMemory = { };
     game_State          gameState;
 
-    game_TileMap Level[2] = { 0 };
+    game_TileMap Level[4] = { 0 };
 
     
 
@@ -71,6 +71,10 @@ namespace {
 
     }
 
+    /**************************************************************************
+     * 
+     *************************************************************************/ 
+    
     /**************************************************************************
      * 
      *************************************************************************/
@@ -332,11 +336,11 @@ namespace {
                 result = false;
             } break;
             case 2: {
-                (*gameState.currentMap)--;
+                (*gameState.currentMap) = 1;
                 result = true;
             } break;
             case 3: {
-                (*gameState.currentMap)++;
+                (*gameState.currentMap) = 0;
                 result = true;
             } break;
             }
@@ -431,7 +435,7 @@ extern "C" GAME_RENDER_GFX(renderGameGfx) {
         9,
         120,
         120,
-        (uint8_t*)&TILE_DATA0
+        (uint8_t*)&TILE_DATA00
     };
     Level[1] = {
         0.0f,
@@ -440,7 +444,25 @@ extern "C" GAME_RENDER_GFX(renderGameGfx) {
         9,
         120,
         120,
-        (uint8_t*)&TILE_DATA1
+        (uint8_t*)&TILE_DATA01
+    };
+    Level[2] = {
+        0.0f,
+        0.0f,
+        16,
+        9,
+        120,
+        120,
+        (uint8_t*)&TILE_DATA10
+    };
+    Level[3] = {
+        0.0f,
+        0.0f,
+        16,
+        9,
+        120,
+        120,
+        (uint8_t*)&TILE_DATA11
     };
     
     renderTestGradient(gfxBuffer);
@@ -474,7 +496,7 @@ extern "C" GAME_UPDATE(updateGame) {
         9,
         120,
         120,
-        (uint8_t*)&TILE_DATA0
+        (uint8_t*)&TILE_DATA00
     };
     Level[1] = {
         0.0f,
@@ -483,7 +505,25 @@ extern "C" GAME_UPDATE(updateGame) {
         9,
         120,
         120,
-        (uint8_t*)&TILE_DATA1
+        (uint8_t*)&TILE_DATA01
+    };
+    Level[2] = {
+        0.0f,
+        0.0f,
+        16,
+        9,
+        120,
+        120,
+        (uint8_t*)&TILE_DATA10
+    };
+    Level[3] = {
+        0.0f,
+        0.0f,
+        16,
+        9,
+        120,
+        120,
+        (uint8_t*)&TILE_DATA11
     };
     parseInput(controllerInput);
     inputTest(controllerInput);
