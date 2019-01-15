@@ -6,10 +6,7 @@
  * 0    - Release build
  *****************************************************************************/
 #define PROTOTYPE 1
-#define MAX_INPUT_COUNT 2
-#define KEYBOARD_INPUT 0
-#define GAMEPAD_INPUT 1
-#define MAX_BUTTON_COUNT 12
+
 
 /******************************************************************************
  * 
@@ -37,9 +34,14 @@
 /******************************************************************************
  * CONST
  *****************************************************************************/
-const int DEFAULT_GFX_BUFFER_WIDTH = 1920;
-const int DEFAULT_GFX_BUFFER_HEIGHT = 1080;
-const float PI32 = 3.14159265359f;
+#define DEFAULT_GFX_BUFFER_WIDTH 1920
+#define DEFAULT_GFX_BUFFER_HEIGHT 1080
+#define MAX_INPUT_COUNT 2
+#define KEYBOARD_INPUT 0
+#define GAMEPAD_INPUT 1
+#define MAX_BUTTON_COUNT 12
+#define PI32 3.14159265359f
+
 uint8_t TILE_DATA00[9][16] = {
     { 0,0,0,1, 1,1,1,2, 1,1,1,1, 1,1,1,1 },
     { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1 },
@@ -92,10 +94,15 @@ uint8_t TILE_DATA11[9][16] = {
  * STRUCTS
  *****************************************************************************/
 // Struct representing a location in the game world coordinates
+// MAX SIZE 256 TileSets @ 16,777,215 Tiles in 1 direction
 struct game_UnifiedPosition {  
-    uint32_t    MapX;       // Upper 16 bits = MapX; Lower 16 bits TileX
-    uint32_t    MapY;       // Upper 16 bits = MapY; Lower 16 bits TileY
-    uint32_t    MapZ;       // Upper 16 bits = WorldZ; Lower 16 bits MapSetZ
+    uint32_t    MapX;       // Upper 16 bits = MapSetX; Lower 16 bits MapX
+    uint32_t    MapY;       // Upper 16 bits = MapSetY; Lower 16 bits MapY
+
+    // Vector components relative to the Bottom-Left corner of the Tile
+    // TODO: Encapsulate this into an actual vector struct
+    float       TileX;      // X(i) component
+    float       TileY;      // Y(j) component
 };
 
 // struct representing a map
@@ -107,9 +114,11 @@ struct game_TileMap {
     int     CountX;     // number of horizontal tiles
     int     CountY;     // number of vertical tiles
 
-    float   tileWidth;  // width of a tile
-    float   tileHeight; // height of a tile
+    // TODO: Move this to Tile Struct
+    float   tileWidth;      // width of a tile
+    float   tileHeight;     // height of a tile
 
+    // TODO: Make this work with a Struct
     uint8_t* data ;
 };
 
@@ -128,7 +137,7 @@ struct game_State {
     float*          playerY;
     uint16_t*       currentMap;
     uint16_t*       inputContext;
-    game_TileMap*   Level[2];
+    game_TileMap*   Level[4];
 };
 
 // struct containing the different memory partitions
@@ -210,7 +219,7 @@ struct game_ControllerInput {
     union {     
         game_ButtonState        Buttons[MAX_BUTTON_COUNT];
         struct {    
-            // face buttons
+            // Face Buttons
             game_ButtonState    Top;
             game_ButtonState    Bottom;
             game_ButtonState    Left;

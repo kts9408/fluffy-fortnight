@@ -104,6 +104,27 @@ namespace {
 
     /**************************************************************************
      * 
+     *************************************************************************/
+    void normalizeTilePosition(
+        uint32_t gamePostition,
+        float tilePosition,
+        game_TileMap* map
+    ) {
+        uint32_t result;
+        uint16_t mapPosition = gamePostition & 0xFFFF;
+
+        if(tilePosition > 1.0f) {
+            mapPosition++;
+        } else if(tilePosition < 0.0f) {
+            mapPosition--;
+        }
+        result = 
+
+
+        
+    }
+    /**************************************************************************
+     * 
      *************************************************************************/ 
     void drawPlayer(
         float x,
