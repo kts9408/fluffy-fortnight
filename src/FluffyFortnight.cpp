@@ -12,6 +12,7 @@ namespace {
     // TODO: Incorporate into player struct
     float playerWidth   = 30.0f;
     float playerHeight  = 60.0f;
+    
 	 
 
     /**************************************************************************
@@ -102,31 +103,46 @@ namespace {
         return (unsigned int)(value);
     }
 
+    
     /**************************************************************************
-     * 
+     * This function takes in a a pair of packed absolute coordintates and
+     * returns a WorkingPosition struct containing the proper sub-locations.
      *************************************************************************/
-    void normalizeTilePosition(
-        uint32_t gamePostition,
-        float tilePosition,
-        game_TileMap* map
+    inline void calculateWorkingPosition(
+        uint32_t absTileMapX,
+        uint32_t absTileMapY,
+        game_WorkingPosition* out
     ) {
-        uint32_t result;
-        uint16_t mapPosition = gamePostition & 0xFFFF;
+        out->TileMapX = absTileMapX >> MAP_LOCATION_SHIFT;
+        out->TileMapY = absTileMapY >> MAP_LOCATION_SHIFT;
 
-        if(tilePosition > 1.0f) {
-            mapPosition++;
-        } else if(tilePosition < 0.0f) {
-            mapPosition--;
+        out->TilePageX = absTileMapX & MAP_LOCATION_MASK;
+        out->TilePageY = absTileMapY & MAP_LOCATION_MASK;
+    }
+
+    /**************************************************************************
+     * This function takes in a sub-tile position unit vector component and
+     * normalizes it and updates the pagePosition accordingly.
+     *************************************************************************/
+    inline float normalizeTilePosition(
+        float tilePosition,
+        uint16_t* pagePosition
+    ) {
+        float result = tilePosition;    // initialize return value
+
+        if(result > 1.0f) {    // if sub-tile position is on next tile
+            (*pagePosition)++;
+            result--;
+        } else if(result < 0.0f) {  // if sub-tile position is on the previous tile
+            (*pagePosition)--;
+            result++;
         }
-        result = 
-
-
-        
     }
     /**************************************************************************
      * 
      *************************************************************************/ 
     void drawPlayer(
+        game_UnifiedPosition position,
         float x,
         float y,
         game_GfxBuffer* out
@@ -209,9 +225,9 @@ namespace {
     ) {
         // cast color to int values
         uint32_t pixelColor = (uint32_t)(
-            (roundFloatToUInt(color->red * 255.0f) << 16) |
-            (roundFloatToUInt(color->green * 255.0f) << 8) |
-            (roundFloatToUInt(color->blue * 255.0f) << 0)
+            (roundFloatToUInt(color->red * 255.0f) << 0x10) |
+            (roundFloatToUInt(color->green * 255.0f) << 0x8) |
+            (roundFloatToUInt(color->blue * 255.0f) << 0x0)
         );
         // cast coordinates to int values
         int32_t intX0  = roundFloatToInt(x0);
@@ -279,15 +295,15 @@ namespace {
         gameMemory.persistentStorage = (float*)gameMemory.persistentStorage + 1;
         gameMemory.persistentStorageSize -= sizeof(float);
 
-        gameState.playerX = (float*)(gameMemory.persistentStorage);
-        *(gameState.playerX) = 0.0f;
-        gameMemory.persistentStorage = (float*)gameMemory.persistentStorage + 1;
-        gameMemory.persistentStorageSize -= sizeof(float);
-
-        gameState.playerY = (float*)(gameMemory.persistentStorage);
-        *(gameState.playerY) = 0.0f;
-        gameMemory.persistentStorage = (float*)gameMemory.persistentStorage + 1;
-        gameMemory.persistentStorageSize -= sizeof(float);
+        // Initialize the UnifiedPosition struct representing the player's 
+        // position on the TileMap
+        gameState.playerPosition = (game_UnifiedPosition*)(gameMemory.persistentStorage);
+        gameState.playerPosition->TileX = 0.0f;
+        gameState.playerPosition->TileMapX = 3;
+        gameState.playerPosition->TileY = 0.0f;
+        gameState.playerPosition->TileMapY = 3;
+        gameMemory.persistentStorage = (game_UnifiedPosition*)gameMemory.persistentStorage + 1;
+        gameMemory.persistentStorageSize -= sizeof(game_UnifiedPosition);
 
         gameState.inputContext = (uint16_t*)(gameMemory.persistentStorage);
         *(gameState.inputContext) = 0;

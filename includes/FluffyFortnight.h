@@ -34,6 +34,8 @@
 /******************************************************************************
  * CONST
  *****************************************************************************/
+#define MAP_LOCATION_MASK 0xffff;
+#define MAP_LOCATION_SHIFT 0x10;
 #define DEFAULT_GFX_BUFFER_WIDTH 1920
 #define DEFAULT_GFX_BUFFER_HEIGHT 1080
 #define MAX_INPUT_COUNT 2
@@ -93,51 +95,78 @@ uint8_t TILE_DATA11[9][16] = {
 /******************************************************************************
  * STRUCTS
  *****************************************************************************/
-// Struct representing a location in the game world coordinates
-// MAX SIZE 256 TileSets @ 16,777,215 Tiles in 1 direction
-struct game_UnifiedPosition {  
-    uint32_t    MapX;       // Upper 16 bits = MapSetX; Lower 16 bits MapX
-    uint32_t    MapY;       // Upper 16 bits = MapSetY; Lower 16 bits MapY
+// Struct containing temporary data used to describe a location on the world
+// map.
+// 16-bits      | 16-bits
+//------------------------------
+// TileMapIndex | TilePageIndex
+// MAX SIZE 65,535 TilePages @ 65,535 Tiles in 1 direction
+struct game_WorkingPosition {  
+    // Coordinates describing a location on a TileMap in TilePages
+    uint16_t    TileMapX;       
+    uint16_t    TileMapY;
 
-    // Vector components relative to the Bottom-Left corner of the Tile
+    // Coordinates describing a location on a TilePage in Tiles
+    uint16_t    TilePageX;
+    uint16_t    TilePageY;
+
+    // Vector components relative to the Bottom-Left corner of the Tile describing
+    // a Location in UNITS
     // TODO: Encapsulate this into an actual vector struct
     float       TileX;      // X(i) component
     float       TileY;      // Y(j) component
 };
 
-// struct representing a map
-// TODO: Store in Compressed Sparse Row or Compressed Sparse Column
-struct game_TileMap {
-    float   offsetX;    // offset for the entire map
-    float   offsetY;
+// Struct containing data used to describe an absolute location on the world
+// map.
+struct game_UnifiedPosition {
+    uint32_t    TileMapX;       // The absolute X coordinate of a position on the Tile Map
+    uint32_t    TileMapY;       // The absolute Y coordinate of a position on the Tile Map
 
-    int     CountX;     // number of horizontal tiles
-    int     CountY;     // number of vertical tiles
-
-    // TODO: Move this to Tile Struct
-    float   tileWidth;      // width of a tile
-    float   tileHeight;     // height of a tile
-
-    // TODO: Make this work with a Struct
-    uint8_t* data ;
+    // Vector components relative to the Bottom-Left corner of the Tile
+    // TODO: Encapsulate this into an actual vector struct
+    float       TileX;
+    float       TileY;
 };
 
-struct game_MapSet {
-    int             CountX;
-    int             CountY;
+// struct representing a tile on a tilemap
+// TODO: Change to include Sub-tiles (NES era tiles)
+// TODO: Replace color rectangles with bitmaps
+struct game_Tile {
+    float width;        // Width of a Tile in UNITS
+    float height;       // Height of a Tile in UNITS
+    
+    //TODO: Fill out with other tile properties.
+};
 
-    game_TileMap*   data;
+// struct representing a page of the tile map. Map data is paged
+// into memory, TilePage at a time to avoid wasting memory.
+// TODO: Store in Compressed Sparse Row or Compressed Sparse Column
+struct game_TilePage {
+    uint16_t    width;      // number of horizontal tiles in the TilePage
+    uint16_t    height;     // number of vertical tiles in the TilePage
+
+    // TODO: Make these Tiles instead of chars
+    uint8_t* data;      // Array of Tile data
+};
+
+// struct representing an entire game map.
+struct game_TileMap {
+    uint16_t     width;
+    uint16_t     height;
+
+    // TODO: implement this
+    game_TilePage*   data;
 };
 
 // struct containing the state of the game persistant from frame to frame
 struct game_State {
     float*          t;          // persistent time
     game_UnifiedPosition*  playerPosition;
-    float*          playerX;    
     float*          playerY;
     uint16_t*       currentMap;
     uint16_t*       inputContext;
-    game_TileMap*   Level[4];
+    game_TilePage*  Level[4];
 };
 
 // struct containing the different memory partitions
@@ -172,13 +201,7 @@ struct game_Color {
     float       alpha;
 };
 
-// struct representing a tile on a tilemap
-// TODO: Change to include Sub-tiles (NES era tiles)
-// TODO: Replace color rectangles with bitmaps
-struct game_Tile {
-    game_Color* color;
-    uint8_t     isPassable;
-};
+
 
 // struct representing a platform independent sound buffer for the game to work with.
 // TODO: adding information for mixing (i.e. Volume)
