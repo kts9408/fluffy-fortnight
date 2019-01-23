@@ -34,8 +34,8 @@
 /******************************************************************************
  * CONST
  *****************************************************************************/
-#define MAP_LOCATION_MASK 0xffff;
-#define MAP_LOCATION_SHIFT 0x10;
+#define MAP_LOCATION_MASK 0xffff
+#define MAP_LOCATION_SHIFT 0x10
 #define DEFAULT_GFX_BUFFER_WIDTH 1920
 #define DEFAULT_GFX_BUFFER_HEIGHT 1080
 #define MAX_INPUT_COUNT 2
@@ -146,14 +146,19 @@ struct game_TilePage {
     uint16_t    width;      // number of horizontal tiles in the TilePage
     uint16_t    height;     // number of vertical tiles in the TilePage
 
+    // TODO: Move these into the Tile struct
+    float       tileWidth;
+    float       tileHeight;
+
     // TODO: Make these Tiles instead of chars
     uint8_t* data;      // Array of Tile data
 };
 
 // struct representing an entire game map.
 struct game_TileMap {
-    uint16_t     width;
-    uint16_t     height;
+    uint16_t    width;      // width in TilePages
+    uint16_t    height;     // height in TilePages
+    uint8_t     style;      // streaming map or discrete
 
     // TODO: implement this
     game_TilePage*   data;

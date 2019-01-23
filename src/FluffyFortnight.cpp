@@ -5,8 +5,12 @@ namespace {
     game_Memory         gameMemory = { };
     game_State          gameState;
 
-    game_TileMap Level[4] = { 0 };
+    // TODO: Move Stack Allocation into Game Memory
+    game_TileMap Map = { 0 };
+    game_TilePage tilePages[4];
 
+    // TODO: Incorporate this into the scaling components of a transform matrix
+    float pixelsPerUnit = 256.0f;
     
 
     // TODO: Incorporate into player struct
@@ -71,10 +75,6 @@ namespace {
         }
 
     }
-
-    /**************************************************************************
-     * 
-     *************************************************************************/ 
     
     /**************************************************************************
      * 
@@ -82,6 +82,7 @@ namespace {
     inline int roundFloatToInt(float value) {
         return (int)(value + 0.5f);
     }
+
     /**************************************************************************
      * 
      *************************************************************************/
@@ -103,21 +104,37 @@ namespace {
         return (unsigned int)(value);
     }
 
-    
     /**************************************************************************
-     * This function takes in a a pair of packed absolute coordintates and
-     * returns a WorkingPosition struct containing the proper sub-locations.
+     * This function takes in an unpacked WorkingPosition struct and returns a
+     * packed UnifiedPosition struct containing the coordinates.
+     *************************************************************************/ 
+    inline void packWorkingPosition(
+        game_WorkingPosition* in,
+        game_UnifiedPosition* out
+    ) {
+        out->TileMapX = (uint32_t)(in->TileMapX << MAP_LOCATION_SHIFT) | in->TilePageX;
+        out->TileMapY = (uint32_t)(in->TileMapY << MAP_LOCATION_SHIFT) | in->TilePageY;
+
+        out->TileX = in->TileX;
+        out->TileY = in->TileY;
+    }
+        
+    /**************************************************************************
+     * This function takes in a packed UnifiedPosition struct and returns an 
+     * unpacked WorkingPosition struct containing the proper sub-locations.
      *************************************************************************/
-    inline void calculateWorkingPosition(
-        uint32_t absTileMapX,
-        uint32_t absTileMapY,
+    inline void unpackUnifiedPosition(
+        game_UnifiedPosition* in,
         game_WorkingPosition* out
     ) {
-        out->TileMapX = absTileMapX >> MAP_LOCATION_SHIFT;
-        out->TileMapY = absTileMapY >> MAP_LOCATION_SHIFT;
+        out->TileMapX = (uint16_t)in->TileMapX >> MAP_LOCATION_SHIFT;
+        out->TileMapY = (uint16_t)in->TileMapY >> MAP_LOCATION_SHIFT;
 
-        out->TilePageX = absTileMapX & MAP_LOCATION_MASK;
-        out->TilePageY = absTileMapY & MAP_LOCATION_MASK;
+        out->TilePageX = (uint16_t)in->TileMapX & MAP_LOCATION_MASK;
+        out->TilePageY = (uint16_t)in->TileMapY & MAP_LOCATION_MASK;
+
+        out->TileX = in->TileX;
+        out->TileY = in->TileY;
     }
 
     /**************************************************************************
@@ -135,7 +152,7 @@ namespace {
             result--;
         } else if(result < 0.0f) {  // if sub-tile position is on the previous tile
             (*pagePosition)--;
-            result++;
+            result--;
         }
     }
     /**************************************************************************
@@ -163,8 +180,14 @@ namespace {
      *************************************************************************/
     void drawTileMap(
         game_TileMap* map,
+        game_WorkingPosition* playerPosition,
         game_GfxBuffer* out 
     ) {
+        uint16_t pageIndex = (playerPosition->TileMapY * map->width) + playerPosition->TileMapX;
+        game_TilePage* page = &map->data[pageIndex];
+        uint16_t tileIndex = (playerPosition->TilePageY * page->width) + playerPosition->TilePageX;
+        
+
         game_Color color;
         game_Color highlight = { 0.75f, 0.75f, 0.75f };
         int playerTileX   = truncateFloatToInt(*(gameState.playerX) - map->offsetX) / (int)map->tileWidth;
@@ -342,6 +365,42 @@ namespace {
             (uint8_t*)&TILE_DATA1
         };
 */
+
+        // DEBUG MAP INITIALIZATION
+        
+        tilePages[0] = {
+            16,
+            9,
+            256.0f,     // Temporary Value REMOVE
+            256.0f,     // Temporary Value REMOVE
+            (uint8_t*)&TILE_DATA00
+        };
+        tilePages[1] = {
+            16,
+            9,
+            256.0f,     // Temporary Value REMOVE
+            256.0f,     // Temporary Value REMOVE
+            (uint8_t*)&TILE_DATA01
+        };
+        tilePages[2] = {
+            16,
+            9,
+            256.0f,     // Temporary Value REMOVE
+            256.0f,     // Temporary Value REMOVE
+            (uint8_t*)&TILE_DATA10
+        };
+        tilePages[3] = {
+            16,
+            9,
+            256.0f,     // Temporary Value REMOVE
+            256.0f,     // Temporary Value REMOVE
+            (uint8_t*)&TILE_DATA11
+        };
+
+        Map.height = 2;
+        Map.width = 2;
+        Map.data = tilePages;
+
         gameMemory.isInitialized = true;
         // TODO: implement memory management
     }
@@ -354,16 +413,22 @@ namespace {
     bool tileCollision(
         float testX,
         float testY,
+        game_WorkingPosition* playerPosition,
         game_TileMap* map
     ) {
-        int playerTileX   = truncateFloatToInt(testX - map->offsetX) / (int)map->tileWidth;
-        int playerTileY   = truncateFloatToInt(testY - map->offsetY) / (int)map->tileHeight;        
+        int pageIndex = (playerPosition->TileMapY * map->width) + playerPosition->TileMapX;
+        game_TilePage* page = &map->data[pageIndex];
+        int tileIndex = (playerPosition->TilePageY * page->width) + playerPosition->TilePageX;
+        // game_Tile* tile = &page->data[tileIndex];
+
+        int playerTileX   = truncateFloatToInt(testX) / (int)page->tileWidth;
+        int playerTileY   = truncateFloatToInt(testY) / (int)page->tileHeight;        
         bool result = false;
-        unsigned int tileValue;
+        uint8_t tileValue;
     
-        if  ((playerTileX >= 0 && playerTileX < map->CountX) &&
-            (playerTileY >= 0 && playerTileY < map->CountY)) {
-            tileValue = map->data[playerTileY * map->CountX + playerTileX];
+        if  ((playerTileX >= 0 && playerTileX < page->width) &&
+            (playerTileY >= 0 && playerTileY < page->height)) {
+            tileValue = page->data[playerTileY * page->width + playerTileX];
             // TODO: Change transition tiles to a z coordinate shift
             switch(tileValue) {
             case 0: {
@@ -409,7 +474,10 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/
-    void parseInput(game_ControllerInput* controller) {
+    void parseInput(
+        game_ControllerInput* controller,
+        game_WorkingPosition* playerPosition
+    ) {
         float dPlayerX = 0.0f;
         float dPlayerY = 0.0f;
         if(controller->isAnalog) {
@@ -433,8 +501,8 @@ namespace {
         dPlayerX *= 15.0f;
         dPlayerY *= 15.0f;
         bool collisionCheck = tileCollision(
-            *(gameState.playerX) + dPlayerX - 0.5f*playerWidth,
-            *(gameState.playerY) + dPlayerY,
+            (playerPosition->TileX) + dPlayerX - 0.5f*playerWidth,
+            (playerPosition->TileY) + dPlayerY,
             &Level[*gameState.currentMap]
         ) && 
         tileCollision(
@@ -463,47 +531,18 @@ namespace {
 /******************************************************************************
  * Public Methods
  *****************************************************************************/
-extern "C" GAME_RENDER_GFX(renderGameGfx) {
-    // TODO: Move this off of the stack and into game memory
-    Level[0] = {
-        0.0f,
-        0.0f,
-        16,
-        9,
-        120,
-        120,
-        (uint8_t*)&TILE_DATA00
-    };
-    Level[1] = {
-        0.0f,
-        0.0f,
-        16,
-        9,
-        120,
-        120,
-        (uint8_t*)&TILE_DATA01
-    };
-    Level[2] = {
-        0.0f,
-        0.0f,
-        16,
-        9,
-        120,
-        120,
-        (uint8_t*)&TILE_DATA10
-    };
-    Level[3] = {
-        0.0f,
-        0.0f,
-        16,
-        9,
-        120,
-        120,
-        (uint8_t*)&TILE_DATA11
-    };
-    
+extern "C" GAME_RENDER_GFX(renderGameGfx) {  
     renderTestGradient(gfxBuffer);
-    drawTileMap(&Level[*gameState.currentMap], gfxBuffer);
+    game_WorkingPosition playerPosition;
+    unpackUnifiedPosition(
+        gameState.playerPosition,
+        &playerPosition
+    );
+    drawTileMap(
+        &Map,
+        &playerPosition,
+        gfxBuffer
+    );
 
 }
 
@@ -525,46 +564,18 @@ extern "C" GAME_RENDER_AUDIO(renderGameAudio) {
  * 
  *****************************************************************************/
 extern "C" GAME_UPDATE(updateGame) {
-        // TODO: Move this off of the stack and into game memory
-    Level[0] = {
-        0.0f,
-        0.0f,
-        16,
-        9,
-        120,
-        120,
-        (uint8_t*)&TILE_DATA00
-    };
-    Level[1] = {
-        0.0f,
-        0.0f,
-        16,
-        9,
-        120,
-        120,
-        (uint8_t*)&TILE_DATA01
-    };
-    Level[2] = {
-        0.0f,
-        0.0f,
-        16,
-        9,
-        120,
-        120,
-        (uint8_t*)&TILE_DATA10
-    };
-    Level[3] = {
-        0.0f,
-        0.0f,
-        16,
-        9,
-        120,
-        120,
-        (uint8_t*)&TILE_DATA11
-    };
-    parseInput(controllerInput);
+    game_WorkingPosition playerPosition;
+    unpackUnifiedPosition(
+        gameState.playerPosition,
+        &playerPosition
+    );
+    parseInput(
+        controllerInput,
+        &playerPosition
+    );
     inputTest(controllerInput);
     // TODO: Move once this starts polling more than once per frame
     resetControllerStateCounter(controllerInput);
     
 }
+
