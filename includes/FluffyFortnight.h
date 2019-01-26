@@ -34,8 +34,8 @@
 /******************************************************************************
  * CONST
  *****************************************************************************/
-#define MAP_LOCATION_MASK 0xffff
 #define MAP_LOCATION_SHIFT 0x10
+#define MAP_LOCATION_MASK 1 << MAP_LOCATION_SHIFT - 1
 #define DEFAULT_GFX_BUFFER_WIDTH 1920
 #define DEFAULT_GFX_BUFFER_HEIGHT 1080
 #define MAX_INPUT_COUNT 2
