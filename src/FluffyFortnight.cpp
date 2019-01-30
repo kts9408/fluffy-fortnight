@@ -35,8 +35,8 @@ namespace {
         game_Color* color,
         game_GfxBuffer* buffer
     );
-    void drawTileMap(
-        game_TileMap* map,      // 2-D array of integers representing the pallettized map
+    void drawTilePage(
+        game_TileMap* page,      // 2-D array of integers representing the pallettized map
         game_GfxBuffer* out     // the graphics buffer to write to.
     );
     void drawPlayer(
@@ -178,14 +178,12 @@ namespace {
     /**************************************************************************
      * 
      *************************************************************************/
-    void drawTileMap(
-        game_TileMap* map,
+    void drawTilePage(
+        game_TilePage* page,
         game_WorkingPosition* playerPosition,
         game_GfxBuffer* out 
     ) {
-        uint16_t pageIndex = (playerPosition->TileMapY * map->width) + playerPosition->TileMapX;
-        game_TilePage* page = &map->data[pageIndex];
-        uint16_t tileIndex = (playerPosition->TilePageY * page->width) + playerPosition->TilePageX;
+        
         
 
         game_Color color;
@@ -196,19 +194,20 @@ namespace {
         for(int32_t j = 0; j < map->CountY; j++) {
             for(int32_t i = 0; i < map->CountX; i++) {
                 switch(map->data[j * map->CountX + i]) {
-                case 0: {
-                    color = { 0.5f, 0.5f, 0.5f, 0.5f };
-                } break;
-                case 1: {
-                    color = { 1.0f, 1.0f, 1.0f, 1.0f };
-                } break;
-                case 2: {
-                    color = { 0.145f, 0.913f, 0.247f };
-                } break;
-                case 3: {
+                    case 0: {
+                        color = { 0.5f, 0.5f, 0.5f, 0.5f };
+                    } break;
+                    case 1: {
+                        color = { 1.0f, 1.0f, 1.0f, 1.0f };
+                    } break;
+                    case 2: {
+                        color = { 0.145f, 0.913f, 0.247f };
+                    } break;
+                    case 3: {
+                        color = { 0.913f, 0.145f, 0.909f }; 
                     color = { 0.913f, 0.145f, 0.909f }; 
-                } break;
-                
+                        color = { 0.913f, 0.145f, 0.909f }; 
+                    } break;
                 }
                 
                 float x0 = (float)(i * map->tileWidth);
@@ -230,11 +229,7 @@ namespace {
             &highlight, out
         );
 
-        drawPlayer(
-            *(gameState.playerX),
-            *(gameState.playerY),
-            out
-    );
+
     }
 
     /**************************************************************************
@@ -525,7 +520,37 @@ namespace {
         *(gameState.playerX) += dPlayerX;
         *(gameState.playerY) += dPlayerY;    
     }
+    /**************************************************************************
+     * Calculates the TilePosition in meters instead of tiles.
+     *************************************************************************/
+    void setUnitTileCoordinates(
+        game_TilePage* page,
+        game_WorkingPosition* out
+    ) {
+        out->UnitX = page->tileWidth * out->TileX;
+        out->UnitY = page->tileHeight * out->TileY;
+    }
+    /**************************************************************************
+     * 
+     *************************************************************************/
+    void getTilePageSet(
+        game_WorkingPosition* playerPosition,
+        int viewportWidth,
+        int viewportHeight,
+        game_TileMap* map,
+        game_TilePage** out
+    ) {
+        uint16_t pageIndex = (playerPosition->TileMapY * map->width) + playerPosition->TileMapX;
+        game_TilePage* page = &map->data[pageIndex];
+        uint16_t tileIndex = (playerPosition->TilePageY * page->width) + playerPosition->TilePageX;
+        uint8_t* tile = &page->data[tileIndex];
+  
+        
+        
 
+
+
+    }
 
 }
 /******************************************************************************
@@ -534,14 +559,28 @@ namespace {
 extern "C" GAME_RENDER_GFX(renderGameGfx) {  
     renderTestGradient(gfxBuffer);
     game_WorkingPosition playerPosition;
+    game_TilePage** tilePageSet;
     unpackUnifiedPosition(
         gameState.playerPosition,
         &playerPosition
     );
-    drawTileMap(
+    getTilePageSet(
+        &playerPosition,
+        gfxBuffer->width,
+        gfxBuffer->height,
         &Map,
+        tilePageSet
+    );
+
+    drawTilePage(
+        &Page,
         &playerPosition,
         gfxBuffer
+    );
+    drawPlayer(
+        *(gameState.playerX),
+        *(gameState.playerY),
+        out
     );
 
 }
