@@ -10,7 +10,7 @@ namespace {
     game_TilePage tilePages[4];
 
     // TODO: Incorporate this into the scaling components of a transform matrix
-    float pixelsPerUnit = 256.0f;
+    float pixelsPerUnit = 64.0f;
     
 
     // TODO: Incorporate into player struct
@@ -204,8 +204,6 @@ namespace {
                         color = { 0.145f, 0.913f, 0.247f };
                     } break;
                     case 3: {
-                        color = { 0.913f, 0.145f, 0.909f }; 
-                    color = { 0.913f, 0.145f, 0.909f }; 
                         color = { 0.913f, 0.145f, 0.909f }; 
                     } break;
                 }
@@ -531,25 +529,23 @@ namespace {
         out->UnitY = page->tileHeight * out->TileY;
     }
     /**************************************************************************
-     * 
+     * Load in only the pages around the player.
+     * TODO: make more dynamic and flexible with inconsistent map dimensions.
      *************************************************************************/
     void getTilePageSet(
         game_WorkingPosition* playerPosition,
-        int viewportWidth,
-        int viewportHeight,
         game_TileMap* map,
         game_TilePage** out
     ) {
-        uint16_t pageIndex = (playerPosition->TileMapY * map->width) + playerPosition->TileMapX;
-        game_TilePage* page = &map->data[pageIndex];
-        uint16_t tileIndex = (playerPosition->TilePageY * page->width) + playerPosition->TilePageX;
-        uint8_t* tile = &page->data[tileIndex];
-  
-        
-        
-
-
-
+        game_TilePage* result[9];
+        int n = 0;
+        for(int i = -1; i < 2; i++) {
+            for(int j = -1; j < 2; j++) {
+                result[n] = &map->data[map->width * (playerPosition->TileMapY + j) + (playerPosition->TileMapX + i)];
+                n++;
+            }
+        }
+        out = result;
     }
 
 }
