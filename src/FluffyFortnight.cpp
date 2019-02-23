@@ -112,8 +112,8 @@ namespace {
         game_WorkingPosition* in,
         game_UnifiedPosition* out
     ) {
-        out->TileMapX = (uint32_t)(in->TileMapX << MAP_LOCATION_SHIFT) | in->TilePageX;
-        out->TileMapY = (uint32_t)(in->TileMapY << MAP_LOCATION_SHIFT) | in->TilePageY;
+        out->TileMapX = (uint32_t)((in->TileMapX << MAP_LOCATION_SHIFT) | in->TilePageX);
+        out->TileMapY = (uint32_t)((in->TileMapY << MAP_LOCATION_SHIFT) | in->TilePageY);
 
         out->TileX = in->TileX;
         out->TileY = in->TileY;
@@ -127,8 +127,8 @@ namespace {
         game_UnifiedPosition* in,
         game_WorkingPosition* out
     ) {
-        out->TileMapX = (uint16_t)in->TileMapX >> MAP_LOCATION_SHIFT;
-        out->TileMapY = (uint16_t)in->TileMapY >> MAP_LOCATION_SHIFT;
+        out->TileMapX = (uint16_t)(in->TileMapX >> MAP_LOCATION_SHIFT);
+        out->TileMapY = (uint16_t)(in->TileMapY >> MAP_LOCATION_SHIFT);
 
         out->TilePageX = (uint16_t)in->TileMapX & MAP_LOCATION_MASK;
         out->TilePageY = (uint16_t)in->TileMapY & MAP_LOCATION_MASK;
@@ -156,27 +156,32 @@ namespace {
         }
     }
     /**************************************************************************
-     * 
+     * Draw the Player in the center of a given buffer.
+     * TODO:
+     * -implement layers
+     * -implement sprites/models
      *************************************************************************/ 
     void drawPlayer(
-        game_UnifiedPosition position,
-        float x,
-        float y,
         game_GfxBuffer* out
     ) {
         game_Color color = { 0.0f, 0.25f, 1.0f, 1.0f };
-        
+        float x0 = (out->width - playerWidth) / 2.0f;
+        float x1 = (out->width + playerWidth) / 2.0f;
+        float y0 = (out->height - playerHeight) / 2.0f;
+        float y1 = (out->height + playerHeight) / 2.0f;
         drawRect(
-            x, y,
-            (x + playerWidth),
-            (y + playerHeight),
+            x0, y0,
+            x1, y1,
             &color, out
         );
 
     }
 
     /**************************************************************************
-     * 
+     * Draw a TilePage to the graphics buffer.
+     * TODO:
+     * -implement layers
+     * -implement sprites/decals
      *************************************************************************/
     void drawTilePage(
         game_TilePage* page,
@@ -184,16 +189,14 @@ namespace {
         game_GfxBuffer* out 
     ) {
         
-        
-
         game_Color color;
         game_Color highlight = { 0.75f, 0.75f, 0.75f };
-        int playerTileX   = truncateFloatToInt(*(gameState.playerX) - map->offsetX) / (int)map->tileWidth;
-        int playerTileY   = truncateFloatToInt(*(gameState.playerY) - map->offsetY) / (int)map->tileHeight;    
+        int playerTileX   = truncateFloatToInt((float)playerPosition->TilePageX / page->tileWidth);
+        int playerTileY   = truncateFloatToInt((float)playerPosition->TilePageY / page->tileHeight);    
 
-        for(int32_t j = 0; j < map->CountY; j++) {
-            for(int32_t i = 0; i < map->CountX; i++) {
-                switch(map->data[j * map->CountX + i]) {
+        for(int32_t j = 0; j < page->height; j++) {
+            for(int32_t i = 0; i < page->width; i++) {
+                switch(page->data[j * page->width + i]) {
                     case 0: {
                         color = { 0.5f, 0.5f, 0.5f, 0.5f };
                     } break;
@@ -208,10 +211,10 @@ namespace {
                     } break;
                 }
                 
-                float x0 = (float)(i * map->tileWidth);
-                float y0 = (float)(j * map->tileHeight);
-                float x1 = (float)(i * map->tileWidth) + map->tileWidth + 1;
-                float y1 = (float)(j * map->tileWidth) + map->tileWidth + 1;
+                float x0 = (float)(i * page->tileWidth);
+                float y0 = (float)(j * page->tileHeight);
+                float x1 = (float)(i * page->tileWidth) + page->tileWidth + 1;
+                float y1 = (float)(j * page->tileWidth) + page->tileWidth + 1;
                 drawRect(
                     x0, y0,
                     x1, y1,
@@ -220,10 +223,10 @@ namespace {
             }
         }
         drawRect(
-            (float)playerTileX * map->tileWidth,
-            (float)playerTileY * map->tileHeight,
-            (float)(playerTileX + 1) * map->tileWidth,
-            (float)(playerTileY + 1) * map->tileHeight,
+            (float)playerTileX * page->tileWidth,
+            (float)playerTileY * page->tileHeight,
+            (float)(playerTileX + 1) * page->tileWidth,
+            (float)(playerTileY + 1) * page->tileHeight,
             &highlight, out
         );
 
@@ -359,40 +362,7 @@ namespace {
         };
 */
 
-        // DEBUG MAP INITIALIZATION
-        
-        tilePages[0] = {
-            16,
-            9,
-            256.0f,     // Temporary Value REMOVE
-            256.0f,     // Temporary Value REMOVE
-            (uint8_t*)&TILE_DATA00
-        };
-        tilePages[1] = {
-            16,
-            9,
-            256.0f,     // Temporary Value REMOVE
-            256.0f,     // Temporary Value REMOVE
-            (uint8_t*)&TILE_DATA01
-        };
-        tilePages[2] = {
-            16,
-            9,
-            256.0f,     // Temporary Value REMOVE
-            256.0f,     // Temporary Value REMOVE
-            (uint8_t*)&TILE_DATA10
-        };
-        tilePages[3] = {
-            16,
-            9,
-            256.0f,     // Temporary Value REMOVE
-            256.0f,     // Temporary Value REMOVE
-            (uint8_t*)&TILE_DATA11
-        };
-
-        Map.height = 2;
-        Map.width = 2;
-        Map.data = tilePages;
+     
 
         gameMemory.isInitialized = true;
         // TODO: implement memory management
@@ -469,7 +439,8 @@ namespace {
      *************************************************************************/
     void parseInput(
         game_ControllerInput* controller,
-        game_WorkingPosition* playerPosition
+        game_WorkingPosition* playerPosition,
+        game_TileMap* map
     ) {
         float dPlayerX = 0.0f;
         float dPlayerY = 0.0f;
@@ -496,17 +467,20 @@ namespace {
         bool collisionCheck = tileCollision(
             (playerPosition->TileX) + dPlayerX - 0.5f*playerWidth,
             (playerPosition->TileY) + dPlayerY,
-            &Level[*gameState.currentMap]
+            playerPosition,
+            gameState.map
         ) && 
         tileCollision(
-            *(gameState.playerX) + dPlayerX + 0.5f*playerWidth,
-            *(gameState.playerY) + dPlayerY,
-            &Level[*gameState.currentMap]
+            (playerPosition->TileX) + dPlayerX + 0.5f*playerWidth,
+            (playerPosition->TileY) + dPlayerY,
+            playerPosition,
+            gameState.map
         ) &&
         tileCollision(
-            *(gameState.playerX) + dPlayerX + playerWidth,
-            *(gameState.playerY) + dPlayerY,
-            &Level[*gameState.currentMap]
+            (playerPosition->TileX) + dPlayerX + playerWidth,
+            (playerPosition->TileY) + dPlayerY,
+            playerPosition,
+            gameState.map
         );
 
 
@@ -515,8 +489,8 @@ namespace {
             dPlayerY = 0.0f;
         }
         
-        *(gameState.playerX) += dPlayerX;
-        *(gameState.playerY) += dPlayerY;    
+        playerPosition->TileX += dPlayerX;
+        playerPosition->TileY += dPlayerY;    
     }
     /**************************************************************************
      * Calculates the TilePosition in meters instead of tiles.
@@ -528,6 +502,7 @@ namespace {
         out->UnitX = page->tileWidth * out->TileX;
         out->UnitY = page->tileHeight * out->TileY;
     }
+
     /**************************************************************************
      * Load in only the pages around the player.
      * TODO: make more dynamic and flexible with inconsistent map dimensions.
@@ -547,39 +522,38 @@ namespace {
         }
         out = result;
     }
+    /**************************************************************************
+     * 
+     *************************************************************************/ 
+    void renderGameGfx(
+        game_GfxBuffer* gfxBuffer,
+        game_WorkingPosition* playerPosition,
+        game_TileMap* map
+    ) {  
+    renderTestGradient(gfxBuffer);
+    game_TilePage** tilePageSet = 0;
+    
+    getTilePageSet(
+        playerPosition,
+        &Map,
+        tilePageSet
+    );
+    for(int i = 0; i < 9; i++) {
+        drawTilePage(
+            tilePageSet[i],
+            playerPosition,
+            gfxBuffer
+        );
+    }
+    drawPlayer(gfxBuffer);
+
+}
 
 }
 /******************************************************************************
  * Public Methods
  *****************************************************************************/
-extern "C" GAME_RENDER_GFX(renderGameGfx) {  
-    renderTestGradient(gfxBuffer);
-    game_WorkingPosition playerPosition;
-    game_TilePage** tilePageSet;
-    unpackUnifiedPosition(
-        gameState.playerPosition,
-        &playerPosition
-    );
-    getTilePageSet(
-        &playerPosition,
-        gfxBuffer->width,
-        gfxBuffer->height,
-        &Map,
-        tilePageSet
-    );
 
-    drawTilePage(
-        &Page,
-        &playerPosition,
-        gfxBuffer
-    );
-    drawPlayer(
-        *(gameState.playerX),
-        *(gameState.playerY),
-        out
-    );
-
-}
 
 /******************************************************************************
  * 
@@ -600,15 +574,58 @@ extern "C" GAME_RENDER_AUDIO(renderGameAudio) {
  *****************************************************************************/
 extern "C" GAME_UPDATE(updateGame) {
     game_WorkingPosition playerPosition;
+
+   // DEBUG MAP INITIALIZATION
+   // TODO: Move this to Heap allocation
+    game_TileMap map = {};   
+    map.data[0] = {
+        16,
+        9,
+        256.0f,     // Temporary Value REMOVE
+        256.0f,     // Temporary Value REMOVE
+        (uint8_t*)&TILE_DATA00
+    };
+    map.data[1] = {
+        16,
+        9,
+        256.0f,     // Temporary Value REMOVE
+        256.0f,     // Temporary Value REMOVE
+        (uint8_t*)&TILE_DATA01
+    };
+    map.data[2] = {
+        16,
+        9,
+        256.0f,     // Temporary Value REMOVE
+        256.0f,     // Temporary Value REMOVE
+        (uint8_t*)&TILE_DATA10
+    };
+    map.data[3] = {
+        16,
+        9,
+        256.0f,     // Temporary Value REMOVE
+        256.0f,     // Temporary Value REMOVE
+        (uint8_t*)&TILE_DATA11
+    };
+
+    map.height = 2;
+    map.width = 2;
+
+
     unpackUnifiedPosition(
         gameState.playerPosition,
         &playerPosition
     );
     parseInput(
         controllerInput,
-        &playerPosition
+        &playerPosition,
+        &map
     );
     inputTest(controllerInput);
+    renderGameGfx(
+        gfxBuffer,
+        &playerPosition,
+        &map
+    );
     // TODO: Move once this starts polling more than once per frame
     resetControllerStateCounter(controllerInput);
     

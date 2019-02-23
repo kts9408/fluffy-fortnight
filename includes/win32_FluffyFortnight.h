@@ -68,7 +68,6 @@ struct win32_SoundEngine {
 struct win32_GameCode {
     FILETIME            dllTimeStamp;   // timestamp of last write time
     HMODULE             dllGameCode;    // game library
-    game_RenderGfx*     gameRenderGfx;     // render function
     game_RenderAudio*   gameRenderAudio;
     game_Init*          gameInit;       // initalize memory function
     game_Update*        gameUpdate;

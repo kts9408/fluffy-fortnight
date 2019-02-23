@@ -245,12 +245,11 @@ namespace {
         CopyFileA(dllName, tempDllName, false);                 // make a working copy of dll
         output->dllGameCode = LoadLibraryA(tempDllName);         // deploy OS hooks to load working dll
         if(output->dllGameCode) {                               // load successful
-            output->gameRenderGfx = (game_RenderGfx*)GetProcAddress(output->dllGameCode, "renderGameGfx");
             output->gameInit = (game_Init*)GetProcAddress(output->dllGameCode, "initGame");
             output->gameRenderAudio = (game_RenderAudio*)GetProcAddress(output->dllGameCode, "renderGameAudio");
             output->gameUpdate = (game_Update*)GetProcAddress(output->dllGameCode, "updateGame");
             win32_GetLastWriteTime(dllName, &(output->dllTimeStamp));
-            output->isValid = (output->gameRenderGfx != nullptr);    // set initialized flag
+            output->isValid = (output->gameUpdate != nullptr);    // set initialized flag
         } else {
             result = 7;                 // ERROR: Failed to read library
         }
@@ -271,8 +270,7 @@ namespace {
         if (input->dllGameCode) {
             FreeLibrary(input->dllGameCode);
         }
-
-        input->gameRenderGfx        = 0;
+        input->gameUpdate           = 0;
         input->gameRenderAudio      = 0;
         input->gameInit             = 0;
         input->isValid              = false;
@@ -777,9 +775,12 @@ int CALLBACK WinMain(
         // end of input
 
 		if (gameCode.isValid) {
-            gameCode.gameUpdate(&inputA->KeyboardController);
+            gameCode.gameUpdate(
+                &inputA->KeyboardController,
+                &gfxPushBuffer
+            );
             gameCode.gameRenderAudio(&soundPushBuffer);     // Call the game to fill an audio buffer
-			gameCode.gameRenderGfx(&gfxPushBuffer);         // Call the game to fill a graphics buffer
+			// gameCode.gameRenderGfx(&gfxPushBuffer);         // Call the game to fill a graphics buffer
 		}
        /* win32_ProcessGameSound(
             &soundPushBuffer,

@@ -35,7 +35,7 @@
  * CONST
  *****************************************************************************/
 #define MAP_LOCATION_SHIFT 0x10
-#define MAP_LOCATION_MASK 1 << MAP_LOCATION_SHIFT - 1
+#define MAP_LOCATION_MASK (1 << MAP_LOCATION_SHIFT) - 1
 #define DEFAULT_GFX_BUFFER_WIDTH 1920
 #define DEFAULT_GFX_BUFFER_HEIGHT 1080
 #define MAX_INPUT_COUNT 2
@@ -57,7 +57,7 @@ uint8_t TILE_DATA00[144] = {
 };
 
 uint8_t TILE_DATA01[144] = {
-    1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1 ,
+    1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
     1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1,
     1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1,
     1,0,0,0, 0,0,0,0, 0,1,0,0, 0,0,0,1,
@@ -176,11 +176,12 @@ struct game_State {
     float*          playerY;
     uint16_t*       currentMap;
     uint16_t*       inputContext;
-    game_TilePage*  Level[4];
+    game_TileMap*   map;
 };
 
 // struct containing the different memory partitions
 // TODO: implement a custom allocator to manage the working memory
+// TODO: combine parts of GameState into tempStorage
 struct game_Memory {
     bool            isInitialized;                  
     
@@ -295,7 +296,7 @@ struct game_Input {
 #define GAME_RENDER_GFX(name) void name(game_GfxBuffer* gfxBuffer)
 #define GAME_INIT(name) void name(void* memory)
 #define GAME_RENDER_AUDIO(name) void name(game_SoundBuffer* soundBuffer)
-#define GAME_UPDATE(name) void name(game_ControllerInput* controllerInput)
+#define GAME_UPDATE(name) void name(game_ControllerInput* controllerInput, game_GfxBuffer* gfxBuffer)
 // TODO: Add additional bindings here
 
 /******************************************************************************
@@ -303,7 +304,6 @@ struct game_Input {
  * renders the game screen to it.
  * @param gfxBuffer - The game_GfxBuffer struct to modify.
  *****************************************************************************/
-typedef GAME_RENDER_GFX(game_RenderGfx);
 typedef GAME_INIT(game_Init);
 typedef GAME_RENDER_AUDIO(game_RenderAudio);
 typedef GAME_UPDATE(game_Update);
