@@ -7,7 +7,6 @@ namespace {
 
     // TODO: Move Stack Allocation into Game Memory
     game_TileMap Map = { 0 };
-    game_TilePage tilePages[4];
 
     // TODO: Incorporate this into the scaling components of a transform matrix
     float pixelsPerUnit = 64.0f;
@@ -138,7 +137,7 @@ namespace {
     }
 
     /**************************************************************************
-     * This function takes in a sub-tile position unit vector component and
+     * This function takes in a sub-tile position unit vector component, 
      * normalizes it and updates the pagePosition accordingly.
      *************************************************************************/
     inline float normalizeTilePosition(
@@ -154,6 +153,7 @@ namespace {
             (*pagePosition)--;
             result--;
         }
+        return result;
     }
     /**************************************************************************
      * Draw the Player in the center of a given buffer.
@@ -164,7 +164,7 @@ namespace {
     void drawPlayer(
         game_GfxBuffer* out
     ) {
-        game_Color color = { 0.0f, 0.25f, 1.0f, 1.0f };
+        game_Color color = { 0.0f, 0.25f, 1.0f, 1.0f };     // TEMPORARY VALUE
         float x0 = (out->width - playerWidth) / 2.0f;
         float x1 = (out->width + playerWidth) / 2.0f;
         float y0 = (out->height - playerHeight) / 2.0f;
@@ -190,9 +190,7 @@ namespace {
     ) {
         
         game_Color color;
-        game_Color highlight = { 0.75f, 0.75f, 0.75f };
-        int playerTileX   = truncateFloatToInt((float)playerPosition->TilePageX / page->tileWidth);
-        int playerTileY   = truncateFloatToInt((float)playerPosition->TilePageY / page->tileHeight);    
+        game_Color highlight = { 0.75f, 0.75f, 0.75f };     // TEMPORARY VALUE
 
         for(int32_t j = 0; j < page->height; j++) {
             for(int32_t i = 0; i < page->width; i++) {
@@ -223,10 +221,10 @@ namespace {
             }
         }
         drawRect(
-            (float)playerTileX * page->tileWidth,
-            (float)playerTileY * page->tileHeight,
-            (float)(playerTileX + 1) * page->tileWidth,
-            (float)(playerTileY + 1) * page->tileHeight,
+            (float)playerPosition->TilePageX * page->tileWidth,
+            (float)playerPosition->TilePageY * page->tileHeight,
+            (float)(playerPosition->TilePageX + 1) * page->tileWidth,
+            (float)(playerPosition->TilePageY + 1) * page->tileHeight,
             &highlight, out
         );
 
@@ -334,36 +332,6 @@ namespace {
         gameMemory.persistentStorage = (uint16_t*)gameMemory.persistentStorage + 1;
         gameMemory.persistentStorageSize -= sizeof(uint16_t);
 
-    /* TODO: DEBUG THIS!
-        gameState.Level[0] = (game_TileMap*)(gameMemory.tempStorage);
-        gameMemory.tempStorage = (game_TileMap*)gameMemory.tempStorage + 1;
-        gameMemory.tempStorageSize -= sizeof(game_TileMap);
-        *(gameState.Level[0]) = {
-            0.0f,
-            0.0f,
-            16,
-            9,
-            120,
-            120,
-            (uint8_t*)&TILE_DATA0
-        };
-        
-        gameState.Level[1] = (game_TileMap*)(gameMemory.tempStorage);
-        gameMemory.tempStorage = (game_TileMap*)gameMemory.tempStorage + 1;
-        gameMemory.tempStorageSize -= sizeof(game_TileMap);
-        *(gameState.Level[1]) = {
-            0.0f,
-            0.0f,
-            16,
-            9,
-            120,
-            120,
-            (uint8_t*)&TILE_DATA1
-        };
-*/
-
-     
-
         gameMemory.isInitialized = true;
         // TODO: implement memory management
     }
@@ -468,19 +436,19 @@ namespace {
             (playerPosition->TileX) + dPlayerX - 0.5f*playerWidth,
             (playerPosition->TileY) + dPlayerY,
             playerPosition,
-            gameState.map
+            map
         ) && 
         tileCollision(
             (playerPosition->TileX) + dPlayerX + 0.5f*playerWidth,
             (playerPosition->TileY) + dPlayerY,
             playerPosition,
-            gameState.map
+            map
         ) &&
         tileCollision(
             (playerPosition->TileX) + dPlayerX + playerWidth,
             (playerPosition->TileY) + dPlayerY,
             playerPosition,
-            gameState.map
+            map
         );
 
 
@@ -506,21 +474,38 @@ namespace {
     /**************************************************************************
      * Load in only the pages around the player.
      * TODO: make more dynamic and flexible with inconsistent map dimensions.
+     * - Make this dynamic based off of render speed
      *************************************************************************/
-    void getTilePageSet(
+    void getTilePageFrame(
         game_WorkingPosition* playerPosition,
         game_TileMap* map,
-        game_TilePage** out
+        game_TilePage*** out
     ) {
+        // TODO: Make TilePageFrame Struct
         game_TilePage* result[9];
-        int n = 0;
-        for(int i = -1; i < 2; i++) {
-            for(int j = -1; j < 2; j++) {
-                result[n] = &map->data[map->width * (playerPosition->TileMapY + j) + (playerPosition->TileMapX + i)];
-                n++;
+        *(result[4]) = map->data[playerPosition->TileMapY * map->width + playerPosition->TileMapX];
+        
+        int pageFrameWidth = 3;
+        int j = 0;
+        for(
+            int y = playerPosition->TileMapY - 1;
+            y <= playerPosition->TileMapY + 1;
+            y++
+        ) {
+            int i = 0;
+            for(
+                int x = playerPosition->TileMapX - 1;
+                x <= playerPosition->TileMapX + 1;
+                x++
+            ) {
+                *(result[j * pageFrameWidth + i]) = map->data[map->width * y + x];
+                i++;
             }
+            j++;
         }
-        out = result;
+
+        
+        *out = result;
     }
     /**************************************************************************
      * 
@@ -531,16 +516,16 @@ namespace {
         game_TileMap* map
     ) {  
     renderTestGradient(gfxBuffer);
-    game_TilePage** tilePageSet = 0;
+    game_TilePage** tilePageFrame = 0;
     
-    getTilePageSet(
+    getTilePageFrame(
         playerPosition,
         &Map,
-        tilePageSet
+        &tilePageFrame
     );
     for(int i = 0; i < 9; i++) {
         drawTilePage(
-            tilePageSet[i],
+            tilePageFrame[i],
             playerPosition,
             gfxBuffer
         );
@@ -577,38 +562,41 @@ extern "C" GAME_UPDATE(updateGame) {
 
    // DEBUG MAP INITIALIZATION
    // TODO: Move this to Heap allocation
-    game_TileMap map = {};   
-    map.data[0] = {
+    Map.width = 2;
+    Map.height = 2;
+    Map.style = 0;
+    game_TilePage temp[4];
+    temp[0] = {
         16,
         9,
         256.0f,     // Temporary Value REMOVE
         256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA00
     };
-    map.data[1] = {
+    temp[1] = {
         16,
         9,
         256.0f,     // Temporary Value REMOVE
         256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA01
     };
-    map.data[2] = {
+    temp[2] = {
         16,
         9,
         256.0f,     // Temporary Value REMOVE
         256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA10
     };
-    map.data[3] = {
+    temp[3] = {
         16,
         9,
         256.0f,     // Temporary Value REMOVE
         256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA11
     };
-
-    map.height = 2;
-    map.width = 2;
+    Map.data = temp;
+    Map.height = 2;
+    Map.width = 2;
 
 
     unpackUnifiedPosition(
@@ -618,13 +606,13 @@ extern "C" GAME_UPDATE(updateGame) {
     parseInput(
         controllerInput,
         &playerPosition,
-        &map
+        &Map
     );
     inputTest(controllerInput);
     renderGameGfx(
         gfxBuffer,
         &playerPosition,
-        &map
+        &Map
     );
     // TODO: Move once this starts polling more than once per frame
     resetControllerStateCounter(controllerInput);

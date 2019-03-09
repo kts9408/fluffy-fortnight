@@ -216,7 +216,7 @@ struct game_Color {
 
 // struct representing a platform independent sound buffer for the game to work with.
 // TODO: adding information for mixing (i.e. Volume)
-// TODO: add ENUM for underlying different underlying engines
+// TODO: add ENUM for underlying different underlying libraries
 struct game_SoundBuffer {
     bool            isInitialized;
     int             samplesPerSecond;
