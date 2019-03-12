@@ -7,6 +7,8 @@ namespace {
 
     // TODO: Move Stack Allocation into Game Memory
     game_TileMap Map = { 0 };
+    game_TilePage tempMap[9];
+    game_TilePage* tilePageFrame[TILE_PAGE_FRAME_SIZE];
 
     // TODO: Incorporate this into the scaling components of a transform matrix
     float pixelsPerUnit = 64.0f;
@@ -25,9 +27,7 @@ namespace {
    /***************************************************************************
     * Forward Declarations
     **************************************************************************/
-    void renderTestGradient(game_GfxBuffer* gfxBuffer);
-    inline unsigned int roundFloatToUInt(float value);
-    inline int roundFloatToInt(float value);
+
     void drawRect(
         float x0, float y0,     // coordinates of the top left corner
         float x1, float y1,     // coordinates of the botom right corner
@@ -75,33 +75,6 @@ namespace {
 
     }
     
-    /**************************************************************************
-     * 
-     *************************************************************************/
-    inline int roundFloatToInt(float value) {
-        return (int)(value + 0.5f);
-    }
-
-    /**************************************************************************
-     * 
-     *************************************************************************/
-    inline unsigned int roundFloatToUInt(float value) {
-        return (unsigned int)(value + 0.5f);
-    }
-
-    /**************************************************************************
-     * 
-     *************************************************************************/ 
-    inline int truncateFloatToInt(float value) {
-        return (int)(value);
-    }
-
-    /**************************************************************************
-     * 
-     *************************************************************************/ 
-    inline unsigned int truncateFloatToUInt(float value) {
-        return (unsigned int)(value);
-    }
 
     /**************************************************************************
      * This function takes in an unpacked WorkingPosition struct and returns a
@@ -188,7 +161,6 @@ namespace {
         game_WorkingPosition* playerPosition,
         game_GfxBuffer* out 
     ) {
-        
         game_Color color;
         game_Color highlight = { 0.75f, 0.75f, 0.75f };     // TEMPORARY VALUE
 
@@ -283,7 +255,7 @@ namespace {
 
         // Fill the sound buffer with a sine wave.
         for(int i = 0; i < soundBuffer->sampleCount; i++) {
-            float sineValue         = sinf(t);
+            float sineValue         = Sinf(t);
             int16_t sampleValue     = (int16_t)(sineValue * toneVolume);
             *out++ = sampleValue;
 			*out++ = sampleValue;
@@ -479,13 +451,12 @@ namespace {
     void getTilePageFrame(
         game_WorkingPosition* playerPosition,
         game_TileMap* map,
-        game_TilePage*** out
+        game_TilePage** out
     ) {
         // TODO: Make TilePageFrame Struct
-        game_TilePage* result[9];
-        *(result[4]) = map->data[playerPosition->TileMapY * map->width + playerPosition->TileMapX];
+        out[4] = &(map->data[playerPosition->TileMapY * map->width + playerPosition->TileMapX]);
         
-        int pageFrameWidth = 3;
+        int pageFrameWidth = TILE_PAGE_FRAME_WIDTH;
         int j = 0;
         for(
             int y = playerPosition->TileMapY - 1;
@@ -498,14 +469,12 @@ namespace {
                 x <= playerPosition->TileMapX + 1;
                 x++
             ) {
-                *(result[j * pageFrameWidth + i]) = map->data[map->width * y + x];
+                out[j * pageFrameWidth + i] = &(map->data[map->width * y + x]);
                 i++;
             }
             j++;
         }
 
-        
-        *out = result;
     }
     /**************************************************************************
      * 
@@ -516,19 +485,22 @@ namespace {
         game_TileMap* map
     ) {  
     renderTestGradient(gfxBuffer);
-    game_TilePage** tilePageFrame = 0;
+    
     
     getTilePageFrame(
         playerPosition,
         &Map,
-        &tilePageFrame
+        tilePageFrame
     );
-    for(int i = 0; i < 9; i++) {
-        drawTilePage(
-            tilePageFrame[i],
-            playerPosition,
-            gfxBuffer
-        );
+
+    for(int i = 0; i < TILE_PAGE_FRAME_SIZE; i++) {
+        if(tilePageFrame[i]->data != 0) {
+            drawTilePage(
+                tilePageFrame[i],
+                playerPosition,
+                gfxBuffer
+            );
+        }
     }
     drawPlayer(gfxBuffer);
 
@@ -565,38 +537,71 @@ extern "C" GAME_UPDATE(updateGame) {
     Map.width = 2;
     Map.height = 2;
     Map.style = 0;
-    game_TilePage temp[4];
-    temp[0] = {
+    tempMap[0] = {
         16,
         9,
         256.0f,     // Temporary Value REMOVE
         256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA00
     };
-    temp[1] = {
+    tempMap[1] = {
         16,
         9,
         256.0f,     // Temporary Value REMOVE
         256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA01
     };
-    temp[2] = {
+    tempMap[2] = {
+        16,
+        9,
+        256.0f,     // Temporary Value REMOVE
+        256.0f,     // Temporary Value REMOVE
+        (uint8_t*)&TILE_DATA02
+    };
+    tempMap[3] = {
         16,
         9,
         256.0f,     // Temporary Value REMOVE
         256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA10
     };
-    temp[3] = {
+    tempMap[4] = {
         16,
         9,
         256.0f,     // Temporary Value REMOVE
         256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA11
     };
-    Map.data = temp;
-    Map.height = 2;
-    Map.width = 2;
+    tempMap[5] = {
+        16,
+        9,
+        256.0f,     // Temporary Value REMOVE
+        256.0f,     // Temporary Value REMOVE
+        (uint8_t*)&TILE_DATA12
+    };
+    tempMap[6] = {
+        16,
+        9,
+        256.0f,     // Temporary Value REMOVE
+        256.0f,     // Temporary Value REMOVE
+        (uint8_t*)&TILE_DATA20
+    };
+    tempMap[7] = {
+        16,
+        9,
+        256.0f,     // Temporary Value REMOVE
+        256.0f,     // Temporary Value REMOVE
+        (uint8_t*)&TILE_DATA21
+    };
+    tempMap[8] = {
+        16,
+        9,
+        256.0f,     // Temporary Value REMOVE
+        256.0f,     // Temporary Value REMOVE
+        (uint8_t*)&TILE_DATA22
+    };
+
+    Map.data = tempMap;
 
 
     unpackUnifiedPosition(

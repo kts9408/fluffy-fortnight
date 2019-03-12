@@ -704,6 +704,7 @@ int CALLBACK WinMain(
         DEFAULT_GFX_BUFFER_WIDTH,
         DEFAULT_GFX_BUFFER_HEIGHT
     );
+    deviceContext = GetDC(mainWindow);      // Get a device context to the window
 
     // initialize a working sound buffer for the game code to manipulate
     // TODO: Load Sound settings from ini file
@@ -779,15 +780,14 @@ int CALLBACK WinMain(
                 &inputA->KeyboardController,
                 &gfxPushBuffer
             );
-            gameCode.gameRenderAudio(&soundPushBuffer);     // Call the game to fill an audio buffer
-			// gameCode.gameRenderGfx(&gfxPushBuffer);         // Call the game to fill a graphics buffer
+            // gameCode.gameRenderAudio(&soundPushBuffer);     // Call the game to fill an audio buffer
 		}
        /* win32_ProcessGameSound(
             &soundPushBuffer,
             &audioEngine.soundBuffer);          // push the game audio to the XAudio2 buffer
         */
         // audioEngine.srcVoice->Start(0);      // Start playing the buffer
-        deviceContext = GetDC(mainWindow);      // Get a device context to the window
+        
         win32_CopyBufferToWindow(               // FLIP
             deviceContext,
             DEFAULT_GFX_BUFFER_WIDTH, DEFAULT_GFX_BUFFER_HEIGHT,
