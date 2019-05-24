@@ -6,9 +6,9 @@ namespace {
     game_State          gameState;
 
     // TODO: Move Stack Allocation into Game Memory
-    game_TileMap Map = { 0 };
-    game_TilePage tempMap[9];
-    game_TilePage* tilePageFrame[TILE_PAGE_FRAME_SIZE];
+    game_TileMap        Map = { 0 };
+    game_TilePage       tempMap[9];
+    game_TilePage*      tilePageFrame;
 
     // TODO: Incorporate this into the scaling components of a transform matrix
     float pixelsPerUnit = 64.0f;
@@ -47,6 +47,13 @@ namespace {
     void XAudio2TestSound(game_SoundBuffer* soundBuffer);
     void inputTest(game_ControllerInput* controller);
     void parseInput(game_ControllerInput* controller);
+
+    bool tileCollision(
+        int testTileX,
+        int testTileY,
+        game_WorkingPosition* playerPosition,
+        game_TileMap* map
+    );
    
 
 
@@ -110,25 +117,6 @@ namespace {
     }
 
     /**************************************************************************
-     * This function takes in a sub-tile position unit vector component, 
-     * normalizes it and updates the pagePosition accordingly.
-     *************************************************************************/
-    inline float normalizeTilePosition(
-        float tilePosition,
-        uint16_t* pagePosition
-    ) {
-        float result = tilePosition;    // initialize return value
-
-        if(result > 1.0f) {    // if sub-tile position is on next tile
-            (*pagePosition)++;
-            result--;
-        } else if(result < 0.0f) {  // if sub-tile position is on the previous tile
-            (*pagePosition)--;
-            result--;
-        }
-        return result;
-    }
-    /**************************************************************************
      * Draw the Player in the center of a given buffer.
      * TODO:
      * -implement layers
@@ -158,6 +146,8 @@ namespace {
      *************************************************************************/
     void drawTilePage(
         game_TilePage* page,
+        float tileWidth,
+        float tileHeight,
         game_WorkingPosition* playerPosition,
         game_GfxBuffer* out 
     ) {
@@ -181,10 +171,10 @@ namespace {
                     } break;
                 }
                 
-                float x0 = (float)(i * page->tileWidth);
-                float y0 = (float)(j * page->tileHeight);
-                float x1 = (float)(i * page->tileWidth) + page->tileWidth + 1;
-                float y1 = (float)(j * page->tileWidth) + page->tileWidth + 1;
+                float x0 = (float)(i * tileWidth);
+                float y0 = (float)(j * tileHeight);
+                float x1 = (float)(i * tileWidth) + tileWidth + 1;
+                float y1 = (float)(j * tileWidth) + tileWidth + 1;
                 drawRect(
                     x0, y0,
                     x1, y1,
@@ -193,10 +183,10 @@ namespace {
             }
         }
         drawRect(
-            (float)playerPosition->TilePageX * page->tileWidth,
-            (float)playerPosition->TilePageY * page->tileHeight,
-            (float)(playerPosition->TilePageX + 1) * page->tileWidth,
-            (float)(playerPosition->TilePageY + 1) * page->tileHeight,
+            (float)playerPosition->TilePageX * tileWidth,
+            (float)playerPosition->TilePageY * tileHeight,
+            (float)(playerPosition->TilePageX + 1) * tileWidth,
+            (float)(playerPosition->TilePageY + 1) * tileHeight,
             &highlight, out
         );
 
@@ -308,51 +298,6 @@ namespace {
         // TODO: implement memory management
     }
 
-
-
-    /**************************************************************************
-     * 
-     *************************************************************************/ 
-    bool tileCollision(
-        float testX,
-        float testY,
-        game_WorkingPosition* playerPosition,
-        game_TileMap* map
-    ) {
-        int pageIndex = (playerPosition->TileMapY * map->width) + playerPosition->TileMapX;
-        game_TilePage* page = &map->data[pageIndex];
-        int tileIndex = (playerPosition->TilePageY * page->width) + playerPosition->TilePageX;
-        // game_Tile* tile = &page->data[tileIndex];
-
-        int playerTileX   = truncateFloatToInt(testX) / (int)page->tileWidth;
-        int playerTileY   = truncateFloatToInt(testY) / (int)page->tileHeight;        
-        bool result = false;
-        uint8_t tileValue;
-    
-        if  ((playerTileX >= 0 && playerTileX < page->width) &&
-            (playerTileY >= 0 && playerTileY < page->height)) {
-            tileValue = page->data[playerTileY * page->width + playerTileX];
-            // TODO: Change transition tiles to a z coordinate shift
-            switch(tileValue) {
-            case 0: {
-                result = true;
-            } break;
-            case 1: {
-                result = false;
-            } break;
-            case 2: {
-                (*gameState.currentMap) = 1;
-                result = true;
-            } break;
-            case 3: {
-                (*gameState.currentMap) = 0;
-                result = true;
-            } break;
-            }
-        }
-
-        return result;
-    }
     /**************************************************************************
      * 
      *************************************************************************/ 
@@ -405,20 +350,20 @@ namespace {
         dPlayerX *= 15.0f;
         dPlayerY *= 15.0f;
         bool collisionCheck = tileCollision(
-            (playerPosition->TileX) + dPlayerX - 0.5f*playerWidth,
-            (playerPosition->TileY) + dPlayerY,
+            roundFloatToInt((playerPosition->TileX) + dPlayerX - 0.5f*playerWidth),
+            roundFloatToInt((playerPosition->TileY) + dPlayerY),
             playerPosition,
             map
         ) && 
         tileCollision(
-            (playerPosition->TileX) + dPlayerX + 0.5f*playerWidth,
-            (playerPosition->TileY) + dPlayerY,
+            roundFloatToInt((playerPosition->TileX) + dPlayerX + 0.5f*playerWidth),
+            roundFloatToInt((playerPosition->TileY) + dPlayerY),
             playerPosition,
             map
         ) &&
         tileCollision(
-            (playerPosition->TileX) + dPlayerX + playerWidth,
-            (playerPosition->TileY) + dPlayerY,
+            roundFloatToInt((playerPosition->TileX) + dPlayerX + playerWidth),
+            roundFloatToInt((playerPosition->TileY) + dPlayerY),
             playerPosition,
             map
         );
@@ -432,50 +377,7 @@ namespace {
         playerPosition->TileX += dPlayerX;
         playerPosition->TileY += dPlayerY;    
     }
-    /**************************************************************************
-     * Calculates the TilePosition in meters instead of tiles.
-     *************************************************************************/
-    void setUnitTileCoordinates(
-        game_TilePage* page,
-        game_WorkingPosition* out
-    ) {
-        out->UnitX = page->tileWidth * out->TileX;
-        out->UnitY = page->tileHeight * out->TileY;
-    }
 
-    /**************************************************************************
-     * Load in only the pages around the player.
-     * TODO: make more dynamic and flexible with inconsistent map dimensions.
-     * - Make this dynamic based off of render speed
-     *************************************************************************/
-    void getTilePageFrame(
-        game_WorkingPosition* playerPosition,
-        game_TileMap* map,
-        game_TilePage** out
-    ) {
-        // TODO: Make TilePageFrame Struct
-        out[4] = &(map->data[playerPosition->TileMapY * map->width + playerPosition->TileMapX]);
-        
-        int pageFrameWidth = TILE_PAGE_FRAME_WIDTH;
-        int j = 0;
-        for(
-            int y = playerPosition->TileMapY - 1;
-            y <= playerPosition->TileMapY + 1;
-            y++
-        ) {
-            int i = 0;
-            for(
-                int x = playerPosition->TileMapX - 1;
-                x <= playerPosition->TileMapX + 1;
-                x++
-            ) {
-                out[j * pageFrameWidth + i] = &(map->data[map->width * y + x]);
-                i++;
-            }
-            j++;
-        }
-
-    }
     /**************************************************************************
      * 
      *************************************************************************/ 
@@ -484,25 +386,193 @@ namespace {
         game_WorkingPosition* playerPosition,
         game_TileMap* map
     ) {  
-    renderTestGradient(gfxBuffer);
-    
-    
-    getTilePageFrame(
-        playerPosition,
-        &Map,
-        tilePageFrame
-    );
+        renderTestGradient(gfxBuffer);
+        tilePageFrame = &(map->data[playerPosition->TileMapY * map->width + playerPosition->TileMapX]);
+        
+        /*
+        getTilePageFrame(
+            playerPosition,
+            &Map,
+            tilePageFrame
+        );
+        */
+        drawTilePage(
+            tilePageFrame,
+            map->tileWidth,
+            map->tileWidth,
+            playerPosition,
+            gfxBuffer
+        );
+        drawPlayer(gfxBuffer);
 
-    for(int i = 0; i < TILE_PAGE_FRAME_SIZE; i++) {
-        if(tilePageFrame[i]->data != 0) {
-            drawTilePage(
-                tilePageFrame[i],
-                playerPosition,
-                gfxBuffer
-            );
-        }
     }
-    drawPlayer(gfxBuffer);
+
+/**************************************************************************
+ * Check a coordinate inside a TilePage to determine if the Tile is
+ * passable
+ *************************************************************************/ 
+bool tileCollision(
+    int testTileX,
+    int testTileY,
+    game_WorkingPosition* playerPosition,
+    game_TileMap* map
+) {
+    int pageIndex = (playerPosition->TileMapY * map->width) + playerPosition->TileMapX;
+    game_TilePage* page = &map->data[pageIndex];
+    int tileIndex = (playerPosition->TilePageY * page->width) + playerPosition->TilePageX;
+    // game_Tile* tile = &page->data[tileIndex];
+
+    bool result = false;
+    uint8_t tileValue;
+
+    // check test tile X isn't off the current Tile Page
+    if(testTileX < 0) {
+        page = &map->data[pageIndex - 1];
+        testTileX = page->width + testTileX;
+    } else if(testTileX > page->width) {
+        page = &map->data[pageIndex + 1];
+        testTileX = page->width + testTileX % page->width;
+    }
+
+    // check test tile Y isn't off the current Tile Page
+    if(testTileY < 0) {
+        page = &map->data[pageIndex - map->width];
+        testTileY = page->height + (testTileY * page->width);
+    } else if(testTileX > page->height) {
+        page = &map->data[pageIndex + map->width];
+        testTileY = page->height + (testTileY % page->height) * map->width;
+    }
+
+    tileValue = page->data[testTileY * page->width + testTileX];
+    switch(tileValue) {
+        case 0: {
+            result = true;
+        } break;
+        case 1: {
+            result = false;
+        } break;
+    }
+
+    return result;
+}
+
+/**************************************************************************
+ * This function takes in a sub-tile position unit vector component, 
+ * normalizes it and updates the pagePosition accordingly.
+ *************************************************************************/
+inline float normalizeTilePosition(
+    float tilePosition,
+    uint16_t* pagePosition
+) {
+    float result = tilePosition;    // initialize return value
+
+    if(result > 1.0f) {    // if sub-tile position is on next tile
+        (*pagePosition)++;
+        result--;
+    } else if(result < 0.0f) {  // if sub-tile position is on the previous tile
+        (*pagePosition)--;
+        result--;
+    }
+    return result;
+}
+
+/**************************************************************************
+ * 
+ *************************************************************************/ 
+bool worldTileCollision(
+    float testX,
+    float testY,
+    float tileWidth,
+    float tileHeight,
+    game_WorkingPosition* playerPosition,
+    game_TileMap* map
+) {
+    int pageIndex = (playerPosition->TileMapY * map->width) + playerPosition->TileMapX;
+    game_TilePage* page = &map->data[pageIndex];
+    int tileIndex = (playerPosition->TilePageY * page->width) + playerPosition->TilePageX;
+    // game_Tile* tile = &page->data[tileIndex];
+
+    int playerTileX   = truncateFloatToInt(testX) / (int)tileWidth;
+    int playerTileY   = truncateFloatToInt(testY) / (int)tileHeight;        
+    bool result = false;
+    uint8_t tileValue;
+
+    /*if  ((playerTileX >= 0 && playerTileX < page->width) &&
+        (playerTileY >= 0 && playerTileY < page->height)) {
+    */
+        
+    if (playerTileX < 0) {
+        page = &map->data[(playerPosition->TileMapY * map->width) + playerPosition->TileMapX - 1];
+        playerTileX = page->width + playerTileX;
+    } else if (playerTileX > page->width) {
+        page = &map->data[(playerPosition->TileMapY * map->width) + playerPosition->TileMapX + 1];
+        playerTileX = playerTileX - page->width;
+    } else if (playerTileY < 0) {
+        page = &map->data[map->width * (playerPosition->TileMapY - 1) + playerPosition->TileMapX];
+        playerTileY = page->height + playerTileY;
+    } else if (playerTileY > page->height) {
+        page = &map->data[map->width * (playerPosition->TileMapY + 1) + playerPosition->TileMapX];
+        playerTileY = playerTileY - page->height;
+    }
+
+    tileValue = page->data[playerTileY * page->width + playerTileX];
+    // TODO: Change transition tiles to a z coordinate shift
+    switch(tileValue) {
+        case 0: {
+            result = true;
+        } break;
+        case 1: {
+            result = false;
+        } break;
+    }
+
+    return result;
+}
+
+/**************************************************************************
+ * Calculates the TilePosition in meters instead of tiles.
+ *************************************************************************/
+void setUnitTileCoordinates(
+    game_TilePage* page,
+    float tileWidth,
+    float tileHeight,
+    game_WorkingPosition* out
+) {
+    out->UnitX = tileWidth * out->TileX;
+    out->UnitY = tileHeight * out->TileY;
+}
+
+/**************************************************************************
+ * Load in only the pages around the player.
+ * TODO: make more dynamic and flexible with inconsistent map dimensions.
+ * - Make this dynamic based off of render speed (ie not paging in a new
+ *   TilePageFrame every frame)
+ *************************************************************************/
+void getTilePageFrame(
+    game_WorkingPosition* playerPosition,
+    game_TileMap* map,
+    game_TilePage** out
+) {
+    out[4] = &(map->data[playerPosition->TileMapY * map->width + playerPosition->TileMapX]);
+    
+    int pageFrameWidth = TILE_PAGE_FRAME_WIDTH;
+    int j = 0;
+    for(
+        int y = playerPosition->TileMapY - 1;
+        y <= playerPosition->TileMapY + 1;
+        y++
+    ) {
+        int i = 0;
+        for(
+            int x = playerPosition->TileMapX - 1;
+            x <= playerPosition->TileMapX + 1;
+            x++
+        ) {
+            out[j * pageFrameWidth + i] = &(map->data[map->width * y + x]);
+            i++;
+        }
+        j++;
+    }
 
 }
 
@@ -536,68 +606,52 @@ extern "C" GAME_UPDATE(updateGame) {
    // TODO: Move this to Heap allocation
     Map.width = 2;
     Map.height = 2;
+    Map.tileHeight = 256.0f;
+    Map.tileWidth = 256.0f;
     Map.style = 0;
     tempMap[0] = {
         16,
         9,
-        256.0f,     // Temporary Value REMOVE
-        256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA00
     };
     tempMap[1] = {
         16,
         9,
-        256.0f,     // Temporary Value REMOVE
-        256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA01
     };
     tempMap[2] = {
         16,
         9,
-        256.0f,     // Temporary Value REMOVE
-        256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA02
     };
     tempMap[3] = {
         16,
         9,
-        256.0f,     // Temporary Value REMOVE
-        256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA10
     };
     tempMap[4] = {
         16,
         9,
-        256.0f,     // Temporary Value REMOVE
-        256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA11
     };
     tempMap[5] = {
         16,
         9,
-        256.0f,     // Temporary Value REMOVE
-        256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA12
     };
     tempMap[6] = {
         16,
         9,
-        256.0f,     // Temporary Value REMOVE
-        256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA20
     };
     tempMap[7] = {
         16,
         9,
-        256.0f,     // Temporary Value REMOVE
-        256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA21
     };
     tempMap[8] = {
         16,
         9,
-        256.0f,     // Temporary Value REMOVE
-        256.0f,     // Temporary Value REMOVE
         (uint8_t*)&TILE_DATA22
     };
 

@@ -18,7 +18,7 @@
 // PROTOTYPING - TODO: Replace math functions with more efficent versions
 #if PROTOTYPE
 
-#include "FluffyFortnightIntrinsic.h"            
+#include "FluffyFortnightIntrinsic.h" 
 #include <Windows.h>
 #endif
 
@@ -35,7 +35,7 @@
 /******************************************************************************
  * CONST
  *****************************************************************************/
-#define MAP_LOCATION_SHIFT 0x10
+#define MAP_LOCATION_SHIFT 0xFFFF
 #define MAP_LOCATION_MASK (1 << MAP_LOCATION_SHIFT) - 1
 #define DEFAULT_GFX_BUFFER_WIDTH 1920
 #define DEFAULT_GFX_BUFFER_HEIGHT 1080
@@ -169,10 +169,11 @@ struct game_WorkingPosition {
     uint16_t    TilePageY;
 
     // Vector components relative to the Bottom-Left corner of the Tile describing
-    // a Location in Tiles
+    // a Location in Tile
     // TODO: Encapsulate this into an actual vector struct
     float       TileX;      // X(i) component
     float       TileY;      // Y(j) component
+
     // Vector components relative to the Bottom-Left corner of the Tile describing
     // a Location in Units
     // TODO: Encapsulate this into an actual vector struct
@@ -200,8 +201,8 @@ struct game_UnifiedPosition {
 // TODO: Change to include Sub-tiles (NES era tiles)
 // TODO: Replace color rectangles with bitmaps
 struct game_Tile {
-    float width;        // Width of a Tile in UNITS
-    float height;       // Height of a Tile in UNITS
+    float       width;        // Width of a Tile in UNITS
+    float       height;       // Height of a Tile in UNITS
     
     //TODO: Fill out with other tile properties.
 };
@@ -213,10 +214,7 @@ struct game_TilePage {
     uint16_t    width;      // number of horizontal tiles in the TilePage
     uint16_t    height;     // number of vertical tiles in the TilePage
 
-    // TODO: Move these into the Tile struct
-    float       tileWidth;
-    float       tileHeight;
-
+    
     // TODO: Make these Tiles instead of chars
     uint8_t*    data;      // Array of Tile data
 };
@@ -225,6 +223,8 @@ struct game_TilePage {
 struct game_TileMap {
     uint16_t    width;      // width in TilePages
     uint16_t    height;     // height in TilePages
+    float       tileWidth;  // width of a tile in units
+    float       tileHeight; // height of a tile in units
     uint8_t     style;      // streaming map or discrete
 
     // TODO: implement this
@@ -349,12 +349,13 @@ struct game_Input {
  * External Bindings
  *****************************************************************************/
 // PROTOTYPING CODE
+/*
 #if PROTOTYPE
     void* win32_ReadFromDisk(char* filename);
     bool win32_WriteToDisk(char* filename, uint32_t memorySize, void* memory);
-    void win32_FreeFileMemory(void* memory);
+    void win32_FreeFileMemory(ThreadContext* thread, void* memory);
 #endif
-
+*/
 #define GAME_RENDER_GFX(name) void name(game_GfxBuffer* gfxBuffer)
 #define GAME_INIT(name) void name(void* memory)
 #define GAME_RENDER_AUDIO(name) void name(game_SoundBuffer* soundBuffer)

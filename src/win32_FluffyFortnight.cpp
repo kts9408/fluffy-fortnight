@@ -37,6 +37,7 @@ namespace {
         game_SoundBuffer* in,
         XAUDIO2_BUFFER* out
     );
+    extern "C" DEBUG_FREE_FILE_MEMORY(win32_FreeFileMemory);
 
 
     // End of Forward Declaration
@@ -601,42 +602,43 @@ namespace {
 /******************************************************************************
  * Reads an entire file from disk and stores the data in memory (PROTOTYPING)
  *****************************************************************************/ 
-uint16_t win32_ReadFromDisk(
-    char* filename,
-    void* out
-){
+extern "C" DEBUG_READ_FROM_DISK(win32_ReadFromDisk) {
     uint16_t result = 0;            // initialize error code to general failure
-    HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ,  // Get a Handle to the File, Shared for Reading
-        0, OPEN_EXISTING, 0, 0);    // Throw error if it doesn't exist
+    HANDLE file = CreateFileA(      // Get a Handle to the File, Shared for Reading
+        filename,
+        GENERIC_READ,
+        FILE_SHARE_READ,  
+        0, OPEN_EXISTING, 0, 0
+    );    // Throw error if it doesn't exist
     LARGE_INTEGER fileSize;         // 64-bit integer to hold the file size (NTFS/EXT4 safe)
     uint32_t fileSize32;            // 32-bit integer to pass into ReadFile (Legacy)
     DWORD bytesRead = 0;
     GetFileSizeEx(file, &fileSize); // 64-bit size of the file
     fileSize32 = win32_TruncateUInt64(fileSize.QuadPart);   // safe cast to 32-bit
-    out = VirtualAlloc(0, fileSize.QuadPart,
+    out->Contents = VirtualAlloc(0, fileSize.QuadPart,
         MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);             // Allocate memory to store data
-    if(out) {                       // Memory successfuly allocated
-        if((ReadFile(file, out, fileSize32, &bytesRead, 0)) && (fileSize32 == bytesRead)) {
+    if(out->Contents) {                       // Memory successfuly allocated
+        if((ReadFile(file, out->Contents, fileSize32, &bytesRead, 0)) && (fileSize32 == bytesRead)) {
             result = 1;             // Success!
         } else {                    // Failed to Read or could not read entire file
             result = 0xa;           // ERROR: Failed to Read File!
-            win32_FreeFileMemory(out);  // on failed read release memeory
+            win32_FreeFileMemory(   // on failed read release memeory
+                {0},
+                out
+            );  
         }
     } else {
         result = 9;             // ERROR: Could not allocate memory for file!
     }
         CloseHandle(file);          // Close the File Handle
+        out->ContentSize = fileSize32;
         return result;              // return error code
-    }
+}
 
 /**************************************************************************
  * Writes a value from memory out to disk (PROTOTYPING)
  *************************************************************************/
-bool win32_WriteToDisk(
-    char* filename,
-    uint32_t memorySize,
-    void* memory
-){
+extern "C" DEBUG_WRITE_TO_DISK(win32_WriteToDisk){
     uint16_t result = 0;        // initialize error code to general failure
     HANDLE file = CreateFileA(filename, GENERIC_WRITE, 0,   
         0, CREATE_ALWAYS, 0, 0);    // Get a handle to the file
@@ -657,11 +659,21 @@ bool win32_WriteToDisk(
 /**************************************************************************
  * Free memory allocated to store file data. (PROTOTYPING)
  *************************************************************************/
-void win32_FreeFileMemory(void* memory) {
+extern "C" DEBUG_FREE_FILE_MEMORY(win32_FreeFileMemory)
+{
     if(memory) {
         VirtualFree(memory, 0, MEM_RELEASE);
     }
 }   
+
+void win32_LoadBMP(
+    ThreadContext* thread,
+    Win32_ReadFromDisk readFile,
+    char* filename
+) {
+    DebugReadFileResult bitmap;
+    (*readFile)(thread, filename, &bitmap);
+}
 #endif      // end of Prototyping
 
 /******************************************************************************
@@ -735,8 +747,13 @@ int CALLBACK WinMain(
     inputB->KeyboardController.isAnalog = false;
     
     XINPUT_STATE controllerState;
-
+    
     while((running)) {
+        win32_LoadBMP(
+            {0},
+            &win32_ReadFromDisk,
+            "test.bmp"
+        );
 
         // update loaded code if needed
         FILETIME dllWriteTime = {};

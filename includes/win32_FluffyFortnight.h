@@ -22,7 +22,9 @@ typedef XINPUT_SET_STATE(xinput_set_state);     // function pointer support
 typedef XINPUT_GET_STATE(xinput_get_state);
 #define XInputGetState _XInputGetState
 
+
 #include "..\includes\FluffyFortnight.h"
+
 
 /******************************************************************************
  * CONST
@@ -76,8 +78,8 @@ struct win32_GameCode {
 
 // Struct encapsulating the dimensions of the window
 struct win32_WindowDimension {
-    int             width;
-    int             height;
+    int     width;
+    int     height;
 };
 
 struct win32_XInputCode {
@@ -85,6 +87,9 @@ struct win32_XInputCode {
     xinput_get_state*       _XInputGetState;
 };
 
+typedef struct ThreadContext {
+    int     PlaceHolder;
+} ThreadContext;
 
 /******************************************************************************
  * External Bindings - For Prototyping Purposes
@@ -93,5 +98,19 @@ struct win32_XInputCode {
 /******************************************************************************
  * Public Functions
  *****************************************************************************/
+#if PROTOTYPE == 1
+typedef struct DebugReadFileResult {
+    uint32_t    ContentSize;
+    void*       Contents;
+} DebugReadFileResult;
+
+#define DEBUG_FREE_FILE_MEMORY(name) void name(ThreadContext* thread, void* memory)
+
+
+#define DEBUG_READ_FROM_DISK(name) uint16_t name(ThreadContext* thread, char* filename, DebugReadFileResult* out)
+typedef uint16_t (*Win32_ReadFromDisk)(ThreadContext* thread, char* filename, DebugReadFileResult* out);
+#define DEBUG_WRITE_TO_DISK(name) bool name(ThreadContext* thread, char* filename, uint32_t memorySize, void* memory)
+
+#endif
 
 #endif
