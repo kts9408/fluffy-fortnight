@@ -7,13 +7,36 @@ namespace {
    /***************************************************************************
     * Forward Declarations
     **************************************************************************/
-    LRESULT CALLBACK win32_MainWindowCallback(HWND window, UINT msg, WPARAM wParam, LPARAM lParam);
-    uint16_t win32_InitGfxBuffer(win32_GfxBuffer* buffer, int width, int height);
-    uint16_t win32_InitWindow(HINSTANCE &hInstance, HWND &window);
-    inline win32_WindowDimension win32_GetWindowDimension(HWND window);
-    inline uint16_t win32_GetLastWriteTime(char* filename, FILETIME* output);
-    uint16_t win32_LoadGameCode(char* dllName, win32_GameCode* output);
-    void win32_FreeGameCode(win32_GameCode* input);
+    LRESULT CALLBACK win32_MainWindowCallback(
+        HWND window,
+        UINT msg,
+        WPARAM wParam,
+        LPARAM lParam
+    );
+    uint16_t win32_InitGfxBuffer(
+        win32_GfxBuffer* buffer,
+        int width,
+        int height
+    );
+    uint16_t win32_InitWindow(
+        HINSTANCE &hInstance,
+        HWND &window
+    );
+    inline win32_WindowDimension win32_GetWindowDimension(
+        HWND window
+    );
+    inline uint16_t win32_GetLastWriteTime(
+        char* filename,
+        FILETIME* output
+    );
+    uint16_t win32_LoadGameCode(
+        char* dllName,
+        win32_GameCode* output
+    );
+    void win32_FreeGameCode(
+        win32_GameCode* input
+    );
+
     void win32_ProcessPendingMessages(
         game_ControllerInput* keyboardController
     );
@@ -32,7 +55,9 @@ namespace {
         int x, int y                            // coordinates to offset (TODO: Implement offsets)
     );
 
-    uint16_t win32_InitXAudio2(win32_SoundEngine* out);
+    uint16_t win32_InitXAudio2(
+        win32_SoundEngine* out
+    );
     uint16_t win32_ProcessGameSound(
         game_SoundBuffer* in,
         XAUDIO2_BUFFER* out
@@ -135,8 +160,8 @@ namespace {
             NULL,                               // Starting memory address (NULL so system determines)
             memSz,                              // Size of region (in Bytes)
             MEM_RESERVE|MEM_COMMIT,             // Reserve Page files and Commit the to memory
-            PAGE_READWRITE);                    // Allow Read/Write access
-
+            PAGE_READWRITE                      // Allow Read/Write access
+        );
         if(buffer->memory) {
             result = 1;                         // SUCCESS!
         } else {
@@ -156,10 +181,10 @@ namespace {
         uint16_t result = 0;    // default to general failure
 
         // initialize the window structure with appropriate class attributes
-        WNDCLASSA windowClass = {};                                  // declare window template
-        windowClass.style = CS_HREDRAW|CS_VREDRAW|CS_OWNDC;          // repaint entire window on resize
-        windowClass.lpfnWndProc = win32_MainWindowCallback;          // set message processing callback
-        windowClass.hInstance = hInstance;                           // set the instance handle
+        WNDCLASSA windowClass = {};                                 // declare window template
+        windowClass.style = CS_HREDRAW|CS_VREDRAW;                  // repaint entire window on resize
+        windowClass.lpfnWndProc = win32_MainWindowCallback;         // set message processing callback
+        windowClass.hInstance = hInstance;                          // set the instance handle
         windowClass.lpszClassName = "FluffyFortnightWindowClass";
 
         if (RegisterClassA(&windowClass)) {         // register window class to use CreateWindow
@@ -354,7 +379,7 @@ namespace {
                 default: {
                     TranslateMessage(&msg);                 // Propogate up to OS
                     DispatchMessage(&msg);
-                }break;
+                } break;
             }
 
         }
@@ -546,9 +571,9 @@ namespace {
 
         float result = 0.0f;
         if(in < -deadzone) {
-            result = (float)in/32768.0f;
+            result = (float)in / 32768.0f;
         } else if(in > deadzone) {
-            result = (float)in/32767.0f;
+            result = (float)in / 32767.0f;
         }
 
         return result;
@@ -585,10 +610,10 @@ namespace {
             );
         }
         // TODO: Possibly change this to calculate avg stick position based stick starting and ending position
-        out->avgLX  = win32_NormalizeAnalogStick(in.sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-        out->avgLY  = win32_NormalizeAnalogStick(in.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-        out->avgRX  = win32_NormalizeAnalogStick(in.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
-        out->avgRY  = win32_NormalizeAnalogStick(in.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+        out->AvgLX  = win32_NormalizeAnalogStick(in.sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+        out->AvgLY  = win32_NormalizeAnalogStick(in.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+        out->AvgRX  = win32_NormalizeAnalogStick(in.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+        out->AvgRY  = win32_NormalizeAnalogStick(in.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
         // TODO: Map Analog Stick input to D-Pad
     }
 
@@ -638,7 +663,7 @@ extern "C" DEBUG_READ_FROM_DISK(win32_ReadFromDisk) {
 /**************************************************************************
  * Writes a value from memory out to disk (PROTOTYPING)
  *************************************************************************/
-extern "C" DEBUG_WRITE_TO_DISK(win32_WriteToDisk){
+extern "C" DEBUG_WRITE_TO_DISK(win32_WriteToDisk) {
     uint16_t result = 0;        // initialize error code to general failure
     HANDLE file = CreateFileA(filename, GENERIC_WRITE, 0,   
         0, CREATE_ALWAYS, 0, 0);    // Get a handle to the file

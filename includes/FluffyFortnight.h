@@ -168,7 +168,7 @@ struct game_WorkingPosition {
     uint16_t    TilePageX;
     uint16_t    TilePageY;
 
-    // Vector components relative to the Bottom-Left corner of the Tile describing
+    // Unit vector components relative to the Bottom-Left corner of the Tile describing
     // a Location in Tile
     // TODO: Encapsulate this into an actual vector struct
     float       TileX;      // X(i) component
@@ -303,11 +303,11 @@ struct game_ControllerInput {
     // Analog components of a controller
     bool            isAnalog;
     // Left Analog Stick State
-    float           avgLX;
-    float           avgLY;
+    float           AvgLX;
+    float           AvgLY;
     // Right Analog Stick State
-    float           avgRX;
-    float           avgRY;
+    float           AvgRX;
+    float           AvgRY;
     // Controller Vibration
     uint16_t        LeftVibration;      // Output
     uint16_t        RightVibration;     // Output
