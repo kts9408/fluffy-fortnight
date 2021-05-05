@@ -92,7 +92,7 @@ typedef struct ThreadContext {
 } ThreadContext;
 
 /******************************************************************************
- * External Bindings - For Prototyping Purposes
+ * External Facing - For Prototyping Purposes
  *****************************************************************************/
 
 /******************************************************************************

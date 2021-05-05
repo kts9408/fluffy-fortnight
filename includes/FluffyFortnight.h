@@ -157,6 +157,11 @@ uint8_t TILE_DATA22[144] = {
 /******************************************************************************
  * STRUCTS
  *****************************************************************************/
+
+struct game_PlayerPosition {
+    float       PositionX;
+    float       PositionY;
+};
 // Struct containing temporary data used to describe a location on the world
 // map.
 struct game_WorkingPosition {  
@@ -245,20 +250,22 @@ struct game_State {
 // TODO: implement a custom allocator to manage the working memory
 // TODO: combine parts of GameState into tempStorage
 struct game_Memory {
-    bool            isInitialized;                  
+    bool        isInitialized;                  
     
-    uint64_t        persistentStorageSize;           // size of the persistent partition
-    void*           persistentStorage;               // next available byte of persistent memory
-    void*           persistentStorageHead;           // start of persistent memory
+    uint64_t    persistentStorageSize;          // size of the persistent partition
+    void*       persistentStorage;              // next available byte of persistent memory
+    void*       persistentStorageHead;          // start of persistent memory
 
-    uint64_t        tempStorageSize;                // size of the temporary partition
-    void*           tempStorageHead;                // start of working memory
-    void*           tempStorage;                    // next available byte of working memory
+    uint64_t    tempStorageSize;                // size of the temporary partition
+    void*       tempStorageHead;                // start of working memory
+    void*       tempStorage;                    // next available byte of working memory
 };
 
 
 // struct representing a platform independent graphics buffer
 // for the game to work with.
+
+// TODO: use  4:3 Aspect Ratio With Pillarboxing
 struct game_GfxBuffer {
     void*       memory;
     int         width;
@@ -280,17 +287,17 @@ struct game_Color {
 // TODO: adding information for mixing (i.e. Volume)
 // TODO: add ENUM for underlying different underlying libraries
 struct game_SoundBuffer {
-    bool            isInitialized;
-    int             samplesPerSecond;
-    int             sampleCount;
-    int             bufferSize;
-    uint16_t*       samples;
+    bool        isInitialized;
+    int         samplesPerSecond;
+    int         sampleCount;
+    int         bufferSize;
+    uint16_t*   samples;
 };
 
 // struct encapsulating a thread for the game to use.
 struct game_Thread {
-    uint32_t*       threadId;
-    void*           threadCallBack;
+    uint32_t*   threadId;
+    void*       threadCallBack;
 };
 
 // struct encapsulating the state of a button
@@ -301,16 +308,16 @@ struct game_ButtonState {
 
 struct game_ControllerInput {
     // Analog components of a controller
-    bool            isAnalog;
+    bool        isAnalog;
     // Left Analog Stick State
-    float           AvgLX;
-    float           AvgLY;
+    float       AvgLX;
+    float       AvgLY;
     // Right Analog Stick State
-    float           AvgRX;
-    float           AvgRY;
+    float       AvgRX;
+    float       AvgRY;
     // Controller Vibration
-    uint16_t        LeftVibration;      // Output
-    uint16_t        RightVibration;     // Output
+    uint16_t    LeftVibration;      // Output
+    uint16_t    RightVibration;     // Output
     // digital components of a controller
     union {     
         game_ButtonState        Buttons[MAX_BUTTON_COUNT];
